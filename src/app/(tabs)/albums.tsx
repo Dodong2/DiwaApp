@@ -70,14 +70,15 @@ export default function AlbumsScreen() {
           <View style={{ gap: spacing.md }}>
             {folders.map((folder) => (
               <MoodCard
-                key={folder.id}
-                title={folder.name}
-                subtitle={`${folder.trackIds.length} songs`}
-                linkedAlbumId={folder.linkedAlbumId}
-                fallbackImageUri={`https://picsum.photos/seed/${folder.id}/600/800`}
-                onPlay={() => handlePlayFolder(folder.id)}
-                onPressImage={() => handlePressFolderImage(folder.id)}
-              />
+                  key={folder.id}
+                  title={folder.name}
+                  subtitle={`${folder.trackIds.length} songs`}
+                  linkedAlbumId={folder.linkedAlbumId}
+                  fallbackImageUri={`https://picsum.photos/seed/${folder.id}/600/800`}
+                  trackIds={folder.trackIds}
+                  onPlay={() => handlePlayFolder(folder.id)}
+                  onPressImage={() => handlePressFolderImage(folder.id)}
+                />
             ))}
           </View>
         )}
