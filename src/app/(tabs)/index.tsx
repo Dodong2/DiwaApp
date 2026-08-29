@@ -1,14 +1,22 @@
-import { usePlayerActions } from "@/store/player-store";
-import { FlatList, Pressable, View } from "react-native";
-import { Button } from "../../components/ui/button";
+import { useState } from "react";
+import { FlatList, View, Pressable } from "react-native";
+import { Search } from "lucide-react-native";
 import { Screen } from "../../components/ui/screen";
 import { ThemedText } from "../../components/ui/themed-text";
+import { Button } from "../../components/ui/button";
+import { SearchModal } from "../../components/ui/search-modal";
+import { useMusicLibrary, Track } from "../../hooks/use-music-library";
+import { usePlayerActions } from "../../store/player-store";
 import { colors, spacing } from "../../constants/theme";
-import { useMusicLibrary } from "../../hooks/use-music-library";
 
 export default function AllMusicScreen() {
   const { permission, tracks, loading, requestAccess } = useMusicLibrary();
   const actions = usePlayerActions();
+  const [searchVisible, setSearchVisible] = useState(false);
+
+  const handleSelectFromSearch = (track: Track, index: number, list: Track[]) => {
+    actions?.playQueue(list, index);
+  };
 
   if (permission !== "granted") {
     return (
@@ -30,16 +38,19 @@ export default function AllMusicScreen() {
 
   return (
     <Screen>
-      <ThemedText variant="title" style={{ marginTop: spacing.md, marginBottom: spacing.md }}>
-        All Music
-      </ThemedText>
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: spacing.md, marginBottom: spacing.md }}>
+        <ThemedText variant="title">All Music</ThemedText>
+        <Pressable onPress={() => setSearchVisible(true)} style={{ padding: 4 }}>
+          <Search color={colors.cream} size={22} />
+        </Pressable>
+      </View>
 
       {loading && <ThemedText variant="muted">Loading your music...</ThemedText>}
 
       <FlatList
         data={tracks}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingBottom: 140 }} // leaves room so MiniPlayer doesn't cover the last item
+        contentContainerStyle={{ paddingBottom: 140 }}
         renderItem={({ item, index }) => (
           <Pressable
             onPress={() => actions?.playQueue(tracks, index)}
@@ -51,6 +62,13 @@ export default function AllMusicScreen() {
         ListEmptyComponent={
           !loading ? <ThemedText variant="muted">No music found on this device.</ThemedText> : null
         }
+      />
+
+      <SearchModal
+        visible={searchVisible}
+        onClose={() => setSearchVisible(false)}
+        tracks={tracks}
+        onSelectTrack={handleSelectFromSearch}
       />
     </Screen>
   );
