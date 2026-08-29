@@ -1,62 +1,97 @@
 import { useState } from "react";
-import { ScrollView } from "react-native";
-import { AlbumPickerModal } from "../../components/ui/album-picker-modal";
-import { MoodCard } from "../../components/ui/mood-card";
+import { View, ScrollView } from "react-native";
+import { ListMusic, Plus } from "lucide-react-native";
 import { Screen } from "../../components/ui/screen";
 import { ThemedText } from "../../components/ui/themed-text";
-import { spacing } from "../../constants/theme";
-import { useMoodStore } from "../../store/mood-store";
+import { LibraryTile } from "../../components/ui/library-tile";
+import { MoodCard } from "../../components/ui/mood-card";
+import { CreateFolderModal } from "../../components/ui/create-folder-modal";
+import { AlbumPickerModal } from "../../components/ui/album-picker-modal";
+import { useMusicLibrary } from "../../hooks/use-music-library";
+import { useFoldersStore } from "../../store/folders-store";
+import { usePlayerActions } from "../../store/player-store";
+import { colors, spacing } from "../../constants/theme";
 
 export default function AlbumsScreen() {
-  // 1. State: is the "pick a photo album" modal currently open?
-  //    (same useState you already know from React)
-  const [pickerVisible, setPickerVisible] = useState(false);
+  const { tracks } = useMusicLibrary();
+  const folders = useFoldersStore((s) => s.folders);
+  const linkAlbum = useFoldersStore((s) => s.linkAlbum);
+  const actions = usePlayerActions();
 
-  // 2. Zustand store: which folder name is currently waiting for an album pick.
-  //    We need this because the modal is shared — we have to remember
-  //    WHICH card was tapped before the modal opens.
-  const [activeFolderName, setActiveFolderName] = useState<string | null>(null);
+  const [createModalVisible, setCreateModalVisible] = useState(false);
+  const [albumPickerVisible, setAlbumPickerVisible] = useState(false);
+  const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
 
-  // 3. Pull the saved links (folderName -> albumId) and the setter function
-  //    from the Zustand store. Think of this like useContext, but simpler.
-  const linkedAlbums = useMoodStore((s) => s.linkedAlbums);
-  const linkAlbum = useMoodStore((s) => s.linkAlbum);
-
-  // 4. Called when a MoodCard's image is tapped — remember which folder,
-  //    then open the modal.
-  const handlePressImage = (folderName: string) => {
-    setActiveFolderName(folderName);
-    setPickerVisible(true);
+  const handlePlayAllMusic = () => {
+    if (tracks.length > 0) actions?.playQueue(tracks, 0);
   };
 
-  // 5. Called when the user picks an album inside the modal.
+  const handlePressFolderImage = (folderId: string) => {
+    setActiveFolderId(folderId);
+    setAlbumPickerVisible(true);
+  };
+
   const handleSelectAlbum = (albumId: string) => {
-    if (activeFolderName) {
-      linkAlbum(activeFolderName, albumId);
-    }
+    if (activeFolderId) linkAlbum(activeFolderId, albumId);
+  };
+
+  const handlePlayFolder = (folderId: string) => {
+    const folder = folders.find((f) => f.id === folderId);
+    if (!folder) return;
+    // resolve trackIds back into full Track objects, in the order they were added
+    const folderTracks = folder.trackIds
+      .map((id) => tracks.find((t) => t.id === id))
+      .filter((t): t is NonNullable<typeof t> => Boolean(t));
+    if (folderTracks.length > 0) actions?.playQueue(folderTracks, 0);
   };
 
   return (
     <Screen>
       <ScrollView contentContainerStyle={{ paddingTop: spacing.md, paddingBottom: 140, gap: spacing.md }}>
-        <ThemedText variant="title">Folders</ThemedText>
+        <ThemedText variant="title">Albums</ThemedText>
 
-        {/* For now we only have one hardcoded folder ("Calm") to test with.
-            Later this will be replaced by a real list of folders the user created. */}
-        <MoodCard
-          title="Calm"
-          subtitle="12 songs • your relaxed side"
-          linkedAlbumId={linkedAlbums["Calm"]}
-          fallbackImageUri="https://picsum.photos/seed/calm/600/800"
-          onPlay={() => console.log("play calm folder")}
-          onPressImage={() => handlePressImage("Calm")}
-        />
+        {/* Two static tiles: ALL MUSIC and + to create a new folder */}
+        <View style={{ flexDirection: "row", gap: spacing.md }}>
+          <LibraryTile
+            label="All Music"
+            icon={<ListMusic color={colors.orange} size={28} />}
+            onPress={handlePlayAllMusic}
+          />
+          <LibraryTile
+            label="New Folder"
+            icon={<Plus color={colors.orange} size={28} />}
+            onPress={() => setCreateModalVisible(true)}
+            variant="dashed"
+          />
+        </View>
+
+        {/* User-created folders */}
+        {folders.length > 0 && (
+          <View style={{ gap: spacing.md }}>
+            {folders.map((folder) => (
+              <MoodCard
+                key={folder.id}
+                title={folder.name}
+                subtitle={`${folder.trackIds.length} songs`}
+                linkedAlbumId={folder.linkedAlbumId}
+                fallbackImageUri={`https://picsum.photos/seed/${folder.id}/600/800`}
+                onPlay={() => handlePlayFolder(folder.id)}
+                onPressImage={() => handlePressFolderImage(folder.id)}
+              />
+            ))}
+          </View>
+        )}
       </ScrollView>
 
-      {/* The modal itself — it's invisible until pickerVisible is true. */}
+      <CreateFolderModal
+        visible={createModalVisible}
+        onClose={() => setCreateModalVisible(false)}
+        availableTracks={tracks}
+      />
+
       <AlbumPickerModal
-        visible={pickerVisible}
-        onClose={() => setPickerVisible(false)}
+        visible={albumPickerVisible}
+        onClose={() => setAlbumPickerVisible(false)}
         onSelect={handleSelectAlbum}
       />
     </Screen>

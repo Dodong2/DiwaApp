@@ -1,10 +1,13 @@
-import { Tabs } from "expo-router";
-import { Download, Library, Music } from "lucide-react-native";
 import { View } from "react-native";
-import { MiniPlayer } from "../../components/ui/mini-player";
+import { Tabs } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Music, Library, Download } from "lucide-react-native";
 import { colors } from "../../constants/theme";
+import { MiniPlayer } from "../../components/ui/mini-player";
 
 export default function TabLayout() {
+  const insets = useSafeAreaInsets();
+
   return (
     <View style={{ flex: 1 }}>
       <Tabs
@@ -12,7 +15,13 @@ export default function TabLayout() {
           headerShown: false,
           tabBarActiveTintColor: colors.orange,
           tabBarInactiveTintColor: colors.muted,
-          tabBarStyle: { backgroundColor: colors.bg, borderTopColor: colors.surface },
+          tabBarStyle: {
+            backgroundColor: colors.bg,
+            borderTopColor: colors.surface,
+            height: 58 + insets.bottom,
+            paddingBottom: insets.bottom + 6,
+            paddingTop: 6,
+          },
         }}
       >
         <Tabs.Screen
