@@ -1,4 +1,5 @@
 import { FlatList, Modal, Pressable, StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, radius, spacing } from "../../constants/theme";
 import { usePhotoAlbums } from "../../hooks/use-photo-album";
 import { ThemedText } from "./themed-text";
@@ -10,12 +11,13 @@ type Props = {
 };
 
 export function AlbumPickerModal({ visible, onClose, onSelect }: Props) {
+  const insets = useSafeAreaInsets();
   const { albums, loading } = usePhotoAlbums();
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.backdrop}>
-        <View style={styles.sheet}>
+        <View style={[styles.sheet, { paddingBottom: spacing.lg + insets.bottom }]}>
           <ThemedText variant="title" style={{ marginBottom: spacing.sm }}>
             Pick a photo album
           </ThemedText>
@@ -28,6 +30,7 @@ export function AlbumPickerModal({ visible, onClose, onSelect }: Props) {
           <FlatList
             data={albums}
             keyExtractor={(item) => item.id}
+            style={{ maxHeight: 350 }}
             renderItem={({ item }) => (
               <Pressable
                 style={styles.row}
@@ -65,7 +68,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: radius.lg,
     borderTopRightRadius: radius.lg,
     padding: spacing.lg,
-    maxHeight: "70%",
+    maxHeight: "75%",
   },
   row: {
     flexDirection: "row",

@@ -1,7 +1,12 @@
 import { create } from "zustand";
 
+export type SearchHistoryEntry = {
+  term: string;
+  timestamp: number;
+};
+
 type SearchHistoryStore = {
-  history: string[];
+  history: SearchHistoryEntry[];
   addSearch: (query: string) => void;
   clearHistory: () => void;
 };
@@ -14,11 +19,20 @@ export const useSearchHistoryStore = create<SearchHistoryStore>((set) => ({
     set((state) => {
       const trimmed = query.trim();
       if (!trimmed) return state;
-      // remove duplicate if it already exists, then put it at the front
+
+      // remove duplicate if it already exists (case-insensitive), then
+      // re-add it at the front with a fresh timestamp — re-searching
+      // something counts as "now", so it should show as most recent.
       const withoutDupe = state.history.filter(
-        (h) => h.toLowerCase() !== trimmed.toLowerCase()
+        (h) => h.term.toLowerCase() !== trimmed.toLowerCase()
       );
-      return { history: [trimmed, ...withoutDupe].slice(0, MAX_HISTORY) };
+
+      return {
+        history: [{ term: trimmed, timestamp: Date.now() }, ...withoutDupe].slice(
+          0,
+          MAX_HISTORY
+        ),
+      };
     }),
   clearHistory: () => set({ history: [] }),
 }));

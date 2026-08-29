@@ -5,6 +5,7 @@ import { ArrowLeft, X, Clock, Search as SearchIcon } from "lucide-react-native";
 import { ThemedText } from "./themed-text";
 import { Track } from "../../hooks/use-music-library";
 import { useSearchHistoryStore } from "../../store/search-history-store";
+import { formatRelativeDate } from "../../utils/format-date";
 import { colors, spacing, radius } from "../../constants/theme";
 
 const HISTORY_PREVIEW_COUNT = 5;
@@ -47,6 +48,8 @@ export function SearchModal({ visible, onClose, tracks, onSelectTrack }: Props) 
   const handleHistoryTap = (term: string) => {
     setQuery(term);
   };
+
+  // NOTE: `history` items are now { term, timestamp } objects, not plain strings.
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={handleClose}>
@@ -108,15 +111,18 @@ export function SearchModal({ visible, onClose, tracks, onSelectTrack }: Props) 
               <ThemedText variant="muted">No recent searches yet.</ThemedText>
             ) : (
               <>
-                {visibleHistory.map((term) => (
+                {visibleHistory.map((entry) => (
                   <Pressable
-                    key={term}
+                    key={entry.term}
                     style={styles.historyRow}
-                    onPress={() => handleHistoryTap(term)}
+                    onPress={() => handleHistoryTap(entry.term)}
                   >
                     <Clock color={colors.muted} size={16} />
                     <ThemedText variant="body" style={{ flex: 1 }}>
-                      {term}
+                      {entry.term}
+                    </ThemedText>
+                    <ThemedText variant="muted" style={{ fontSize: 12 }}>
+                      {formatRelativeDate(entry.timestamp)}
                     </ThemedText>
                   </Pressable>
                 ))}

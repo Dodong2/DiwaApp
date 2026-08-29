@@ -38,7 +38,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: spacing.sm,
     right: spacing.sm,
-    bottom: 100,
+    bottom: 120,
     backgroundColor: colors.surface,
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
