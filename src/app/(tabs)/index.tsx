@@ -6,7 +6,7 @@ import { ThemedText } from "../../components/ui/themed-text";
 import { Button } from "../../components/ui/button";
 import { SearchModal } from "../../components/ui/search-modal";
 import { useMusicLibrary, Track } from "../../hooks/use-music-library";
-import { usePlayerActions } from "../../store/player-store";
+import { usePlayerActions, usePlayerStore } from "../../store/player-store";
 import { colors, spacing } from "../../constants/theme";
 
 export default function AllMusicScreen() {
@@ -16,6 +16,7 @@ export default function AllMusicScreen() {
 
   const handleSelectFromSearch = (track: Track, index: number, list: Track[]) => {
     actions?.playQueue(list, index);
+    usePlayerStore.getState().expand();
   };
 
   if (permission !== "granted") {
@@ -53,7 +54,10 @@ export default function AllMusicScreen() {
         contentContainerStyle={{ paddingBottom: 140 }}
         renderItem={({ item, index }) => (
           <Pressable
-            onPress={() => actions?.playQueue(tracks, index)}
+            onPress={() => {
+              actions?.playQueue(tracks, index);
+              usePlayerStore.getState().expand();
+            }}
             style={{ paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.surface }}
           >
             <ThemedText variant="body">{item.title}</ThemedText>

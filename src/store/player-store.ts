@@ -6,6 +6,7 @@ type PlayerActions = {
   togglePlayPause: () => void;
   next: () => void;
   previous: () => void;
+  stop: () => void; // pauses and clears the queue entirely (used by the "close" button)
 };
 
 type PlayerState = {
@@ -13,21 +14,27 @@ type PlayerState = {
   isPlaying: boolean;
   currentTime: number;
   duration: number;
-  actions: PlayerActions | null; // set once by PlayerProvider once the audio engine is ready
+  isExpanded: boolean; // true = big Now Playing screen showing, false = mini-player only
+  actions: PlayerActions | null;
+  expand: () => void;
+  minimize: () => void;
 };
 
-export const usePlayerStore = create<PlayerState>(() => ({
+export const usePlayerStore = create<PlayerState>((set) => ({
   currentTrack: null,
   isPlaying: false,
   currentTime: 0,
   duration: 0,
+  isExpanded: false,
   actions: null,
+  expand: () => set({ isExpanded: true }),
+  minimize: () => set({ isExpanded: false }),
 }));
 
-// Convenience hooks: components pick exactly the slice they need,
-// so a component reading only `currentTrack` never re-renders on `currentTime` ticks.
+// Selective selector hooks — each component subscribes only to the slice it needs.
 export const useCurrentTrack = () => usePlayerStore((s) => s.currentTrack);
 export const useIsPlaying = () => usePlayerStore((s) => s.isPlaying);
-export const usePlaybackProgress = () =>
-  usePlayerStore((s) => ({ currentTime: s.currentTime, duration: s.duration }));
+export const useCurrentTime = () => usePlayerStore((s) => s.currentTime);
+export const useDuration = () => usePlayerStore((s) => s.duration);
 export const usePlayerActions = () => usePlayerStore((s) => s.actions);
+export const useIsExpanded = () => usePlayerStore((s) => s.isExpanded);

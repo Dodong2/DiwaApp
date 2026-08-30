@@ -1,22 +1,34 @@
-import { Pressable, StyleSheet, View } from "react-native";
-import { colors, radius, spacing } from "../../constants/theme";
-import { useCurrentTrack, useIsPlaying, usePlayerActions } from "../../store/player-store";
+import { View, Pressable, StyleSheet } from "react-native";
 import { ThemedText } from "./themed-text";
+import {
+  useCurrentTrack,
+  useIsPlaying,
+  usePlayerActions,
+  useIsExpanded,
+  usePlayerStore,
+} from "../../store/player-store";
+import { colors, spacing, radius } from "../../constants/theme";
 
 export function MiniPlayer() {
   const currentTrack = useCurrentTrack();
   const isPlaying = useIsPlaying();
   const actions = usePlayerActions();
+  const isExpanded = useIsExpanded();
 
-  if (!currentTrack || !actions) return null;
+  // Hide entirely when nothing is playing, OR when the big player is showing instead.
+  if (!currentTrack || !actions || isExpanded) return null;
 
   return (
     <View style={styles.wrapper}>
-      <View style={styles.trackInfo}>
+      {/* Tapping the title/track area reopens the big Now Playing screen */}
+      <Pressable
+        style={styles.trackInfo}
+        onPress={() => usePlayerStore.getState().expand()}
+      >
         <ThemedText variant="body" numberOfLines={1} style={styles.title}>
           {currentTrack.title}
         </ThemedText>
-      </View>
+      </Pressable>
 
       <View style={styles.controls}>
         <Pressable onPress={actions.previous} style={styles.button}>

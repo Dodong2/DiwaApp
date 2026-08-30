@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Music, Library, Download } from "lucide-react-native";
 import { colors } from "../../constants/theme";
 import { MiniPlayer } from "../../components/ui/mini-player";
+import { NowPlayingModal } from "../../components/ui/now-playing-modal";
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
@@ -47,6 +48,7 @@ export default function TabLayout() {
         />
       </Tabs>
       <MiniPlayer />
+      <NowPlayingModal />
     </View>
   );
 }
