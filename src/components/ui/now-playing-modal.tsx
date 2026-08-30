@@ -3,7 +3,6 @@ import { Modal, View, Pressable, StyleSheet, Image, PanResponder } from "react-n
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { X, Minimize2, SkipBack, SkipForward, Play, Pause } from "lucide-react-native";
 import { ThemedText } from "./themed-text";
-import { AlbumPickerModal } from "./album-picker-modal";
 import {
   useCurrentTrack,
   useIsPlaying,
@@ -27,17 +26,102 @@ export function NowPlayingModal() {
   const duration = useDuration();
   const actions = usePlayerActions();
 
+  // Default album is now set from the Settings tab — this screen just reads it.
   const nowPlayingAlbumId = useSettingsStore((s) => s.nowPlayingAlbumId);
-  const setNowPlayingAlbum = useSettingsStore((s) => s.setNowPlayingAlbum);
 
   const [imageUri, setImageUri] = useState<string | null>(null);
-  const [albumPickerVisible, setAlbumPickerVisible] = useState(false);
 
-  // --- Interactive progress bar (tap or drag to seek) ---
-  const [scrubPct, setScrubPct] = useState<number | null>(null); // null = not dragging, use real progress
+  // Pick a new random photo every time the track changes (or the linked album changes).
+  useEffect(() => {
+    if (!currentTrack) return;
+
+    if (!nowPlayingAlbumId) {
+      setImageUri(`https://picsum.photos/seed/${currentTrack.id}/800/800`);
+      return;
+    }
+
+    getRandomPhotoFromAlbum(nowPlayingAlbumId).then((uri) => {
+      setImageUri(uri ?? `https://picsum.photos/seed/${currentTrack.id}/800/800`);
+    });
+  }, [currentTrack?.id, nowPlayingAlbumId]);
+
+  if (!currentTrack) return null;
+
+  return (
+    <Modal visible={isExpanded} animationType="slide" onRequestClose={() => usePlayerStore.getState().minimize()}>
+      <View style={[styles.container, { paddingTop: insets.top + spacing.sm, paddingBottom: insets.bottom + spacing.lg }]}>
+        {/* Header: close (left) and resize/minimize (right) */}
+        <View style={styles.header}>
+          <Pressable onPress={() => actions?.stop()} style={styles.iconButton}>
+            <X color={colors.cream} size={24} />
+          </Pressable>
+          <Pressable onPress={() => usePlayerStore.getState().minimize()} style={styles.iconButton}>
+            <Minimize2 color={colors.cream} size={22} />
+          </Pressable>
+        </View>
+
+        {/* Big art — no longer tappable, the album is set from Settings now */}
+        <View style={styles.artWrapper}>
+          {imageUri && (
+            <Image source={{ uri: imageUri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          )}
+        </View>
+
+        {/* Track info */}
+        <View style={{ marginTop: spacing.lg, alignItems: "center" }}>
+          <ThemedText variant="title" style={{ textAlign: "center" }} numberOfLines={2}>
+            {currentTrack.title}
+          </ThemedText>
+        </View>
+
+        {/* Progress bar — isolated into its own component so dragging doesn't
+            re-render this whole screen (that was the cause of the flicker) */}
+        <ProgressBar
+          currentTime={currentTime}
+          duration={duration}
+          onSeek={(seconds) => actions?.seekTo(seconds)}
+        />
+
+        {/* Transport controls */}
+        <View style={styles.controls}>
+          <Pressable onPress={() => actions?.previous()} style={styles.sideButton}>
+            <SkipBack color={colors.cream} size={30} fill={colors.cream} />
+          </Pressable>
+
+          <Pressable onPress={() => actions?.togglePlayPause()} style={styles.playButton}>
+            {isPlaying ? (
+              <Pause color={colors.bg} size={32} fill={colors.bg} />
+            ) : (
+              <Play color={colors.bg} size={32} fill={colors.bg} />
+            )}
+          </Pressable>
+
+          <Pressable onPress={() => actions?.next()} style={styles.sideButton}>
+            <SkipForward color={colors.cream} size={30} fill={colors.cream} />
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+// Isolated into its own component: while dragging, only THIS component
+// re-renders (many times per second) instead of the whole Now Playing screen
+// with its big image and icons — that isolation is what removes the flicker.
+function ProgressBar({
+  currentTime,
+  duration,
+  onSeek,
+}: {
+  currentTime: number;
+  duration: number;
+  onSeek: (seconds: number) => void;
+}) {
+  const [scrubPct, setScrubPct] = useState<number | null>(null);
   const barRef = useRef<View>(null);
   const barLayoutRef = useRef({ x: 0, width: 0 });
   const durationRef = useRef(duration);
+
   useEffect(() => {
     durationRef.current = duration;
   }, [duration]);
@@ -67,7 +151,7 @@ export function NowPlayingModal() {
       onPanResponderRelease: () => {
         setScrubPct((pct) => {
           if (pct !== null) {
-            actions?.seekTo(pct * durationRef.current);
+            onSeek(pct * durationRef.current);
           }
           return null;
         });
@@ -75,108 +159,31 @@ export function NowPlayingModal() {
     })
   ).current;
 
-  // Pick a new random photo every time the track changes (or the linked album changes).
-  useEffect(() => {
-    if (!currentTrack) return;
-
-    if (!nowPlayingAlbumId) {
-      setImageUri(`https://picsum.photos/seed/${currentTrack.id}/800/800`);
-      return;
-    }
-
-    getRandomPhotoFromAlbum(nowPlayingAlbumId).then((uri) => {
-      setImageUri(uri ?? `https://picsum.photos/seed/${currentTrack.id}/800/800`);
-    });
-  }, [currentTrack?.id, nowPlayingAlbumId]);
-
-  if (!currentTrack) return null;
-
   const progress = scrubPct !== null ? scrubPct : duration > 0 ? currentTime / duration : 0;
   const displayTime = scrubPct !== null ? scrubPct * duration : currentTime;
 
   return (
-    <Modal visible={isExpanded} animationType="slide" onRequestClose={() => usePlayerStore.getState().minimize()}>
-      <View style={[styles.container, { paddingTop: insets.top + spacing.sm, paddingBottom: insets.bottom + spacing.lg }]}>
-        {/* Header: close (left) and resize/minimize (right) */}
-        <View style={styles.header}>
-          <Pressable onPress={() => actions?.stop()} style={styles.iconButton}>
-            <X color={colors.cream} size={24} />
-          </Pressable>
-          <Pressable onPress={() => usePlayerStore.getState().minimize()} style={styles.iconButton}>
-            <Minimize2 color={colors.cream} size={22} />
-          </Pressable>
-        </View>
-
-        {/* Big art — tap to set/change the photo album used for this screen */}
-        <Pressable style={styles.artWrapper} onPress={() => setAlbumPickerVisible(true)}>
-          {imageUri && (
-            <Image source={{ uri: imageUri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-          )}
-          {!nowPlayingAlbumId && (
-            <View style={styles.artHint}>
-              <ThemedText variant="muted" style={{ fontSize: 11 }}>
-                Tap to set photo album
-              </ThemedText>
-            </View>
-          )}
-        </Pressable>
-
-        {/* Track info */}
-        <View style={{ marginTop: spacing.lg, alignItems: "center" }}>
-          <ThemedText variant="title" style={{ textAlign: "center" }} numberOfLines={2}>
-            {currentTrack.title}
-          </ThemedText>
-        </View>
-
-        {/* Progress bar — tap or drag to seek */}
-        <View style={{ marginTop: spacing.lg }}>
-          <View
-            ref={barRef}
-            onLayout={measureBar}
-            style={styles.progressHitArea}
-            {...panResponder.panHandlers}
-          >
-            <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
-              <View style={[styles.progressThumb, { left: `${progress * 100}%` }]} />
-            </View>
-          </View>
-          <View style={styles.timeRow}>
-            <ThemedText variant="muted" style={{ fontSize: 12 }}>
-              {formatTime(displayTime)}
-            </ThemedText>
-            <ThemedText variant="muted" style={{ fontSize: 12 }}>
-              {formatTime(duration)}
-            </ThemedText>
-          </View>
-        </View>
-
-        {/* Transport controls */}
-        <View style={styles.controls}>
-          <Pressable onPress={() => actions?.previous()} style={styles.sideButton}>
-            <SkipBack color={colors.cream} size={30} fill={colors.cream} />
-          </Pressable>
-
-          <Pressable onPress={() => actions?.togglePlayPause()} style={styles.playButton}>
-            {isPlaying ? (
-              <Pause color={colors.bg} size={32} fill={colors.bg} />
-            ) : (
-              <Play color={colors.bg} size={32} fill={colors.bg} />
-            )}
-          </Pressable>
-
-          <Pressable onPress={() => actions?.next()} style={styles.sideButton}>
-            <SkipForward color={colors.cream} size={30} fill={colors.cream} />
-          </Pressable>
+    <View style={{ marginTop: spacing.lg }}>
+      <View
+        ref={barRef}
+        onLayout={measureBar}
+        style={styles.progressHitArea}
+        {...panResponder.panHandlers}
+      >
+        <View style={styles.progressTrack}>
+          <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
+          <View style={[styles.progressThumb, { left: `${progress * 100}%` }]} />
         </View>
       </View>
-
-      <AlbumPickerModal
-        visible={albumPickerVisible}
-        onClose={() => setAlbumPickerVisible(false)}
-        onSelect={setNowPlayingAlbum}
-      />
-    </Modal>
+      <View style={styles.timeRow}>
+        <ThemedText variant="muted" style={{ fontSize: 12 }}>
+          {formatTime(displayTime)}
+        </ThemedText>
+        <ThemedText variant="muted" style={{ fontSize: 12 }}>
+          {formatTime(duration)}
+        </ThemedText>
+      </View>
+    </View>
   );
 }
 
@@ -202,20 +209,8 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     backgroundColor: colors.surface,
   },
-  artImageWrapper: {
-    ...StyleSheet.absoluteFill,
-  },
-  artHint: {
-    position: "absolute",
-    bottom: spacing.sm,
-    right: spacing.sm,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    borderRadius: radius.sm,
-  },
   progressHitArea: {
-    paddingVertical: 12, // bigger invisible touch target, since a 4px bar is too thin to tap accurately
+    paddingVertical: 12,
     justifyContent: "center",
   },
   progressTrack: {
@@ -235,7 +230,7 @@ const styles = StyleSheet.create({
     height: 16,
     borderRadius: 8,
     backgroundColor: colors.orange,
-    marginLeft: -8, // center the thumb over the exact progress point
+    marginLeft: -8,
   },
   timeRow: {
     flexDirection: "row",

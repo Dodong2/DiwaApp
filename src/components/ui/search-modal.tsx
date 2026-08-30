@@ -1,35 +1,58 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, ReactNode } from "react";
 import { Modal, View, TextInput, FlatList, Pressable, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ArrowLeft, X, Clock, Search as SearchIcon } from "lucide-react-native";
 import { ThemedText } from "./themed-text";
-import { Track } from "../../hooks/use-music-library";
-import { useSearchHistoryStore } from "../../store/search-history-store";
 import { formatRelativeDate } from "../../utils/format-date";
 import { colors, spacing, radius } from "../../constants/theme";
 
 const HISTORY_PREVIEW_COUNT = 5;
 
-type Props = {
-  visible: boolean;
-  onClose: () => void;
-  tracks: Track[];
-  onSelectTrack: (track: Track, index: number, list: Track[]) => void;
+type SearchHistoryEntry = { term: string; timestamp: number };
+
+// The shape any history store hook must return — both useMusicSearchHistoryStore
+// and useAlbumSearchHistoryStore (and any future one) match this shape.
+type SearchHistoryStoreHook = () => {
+  history: SearchHistoryEntry[];
+  addSearch: (query: string) => void;
 };
 
-export function SearchModal({ visible, onClose, tracks, onSelectTrack }: Props) {
+type Props<T> = {
+  visible: boolean;
+  onClose: () => void;
+  items: T[];
+  getId: (item: T) => string;
+  getLabel: (item: T) => string; // main text, also what's matched against the query
+  getSubLabel?: (item: T) => string; // optional smaller line under the main label
+  onSelect: (item: T, index: number, list: T[]) => void;
+  useHistoryStore: SearchHistoryStoreHook;
+  placeholder?: string;
+  emptyLabel?: string; // e.g. "songs" or "albums", used in "No {emptyLabel} found for ..."
+};
+
+export function SearchModal<T>({
+  visible,
+  onClose,
+  items,
+  getId,
+  getLabel,
+  getSubLabel,
+  onSelect,
+  useHistoryStore,
+  placeholder = "Search",
+  emptyLabel = "results",
+}: Props<T>) {
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState("");
   const [showAllHistory, setShowAllHistory] = useState(false);
 
-  const history = useSearchHistoryStore((s) => s.history);
-  const addSearch = useSearchHistoryStore((s) => s.addSearch);
+  const { history, addSearch } = useHistoryStore();
 
   const results = useMemo(() => {
     if (!query.trim()) return [];
     const q = query.toLowerCase();
-    return tracks.filter((t) => t.title.toLowerCase().includes(q));
-  }, [tracks, query]);
+    return items.filter((item) => getLabel(item).toLowerCase().includes(q));
+  }, [items, query, getLabel]);
 
   const visibleHistory = showAllHistory ? history : history.slice(0, HISTORY_PREVIEW_COUNT);
 
@@ -39,9 +62,9 @@ export function SearchModal({ visible, onClose, tracks, onSelectTrack }: Props) 
     onClose();
   };
 
-  const handleSelect = (track: Track, index: number, list: Track[]) => {
+  const handleSelect = (item: T, index: number, list: T[]) => {
     if (query.trim()) addSearch(query);
-    onSelectTrack(track, index, list);
+    onSelect(item, index, list);
     handleClose();
   };
 
@@ -49,12 +72,9 @@ export function SearchModal({ visible, onClose, tracks, onSelectTrack }: Props) 
     setQuery(term);
   };
 
-  // NOTE: `history` items are now { term, timestamp } objects, not plain strings.
-
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={handleClose}>
       <View style={[styles.container, { paddingTop: insets.top + spacing.sm }]}>
-        {/* Search bar header */}
         <View style={styles.header}>
           <Pressable onPress={handleClose} style={styles.iconButton}>
             <ArrowLeft color={colors.cream} size={22} />
@@ -65,7 +85,7 @@ export function SearchModal({ visible, onClose, tracks, onSelectTrack }: Props) 
             <TextInput
               value={query}
               onChangeText={setQuery}
-              placeholder="Search your music"
+              placeholder={placeholder}
               placeholderTextColor={colors.muted}
               style={styles.searchInput}
               autoFocus
@@ -80,11 +100,10 @@ export function SearchModal({ visible, onClose, tracks, onSelectTrack }: Props) 
           </View>
         </View>
 
-        {/* Body: either search results or search history */}
         {query.trim() ? (
           <FlatList
             data={results}
-            keyExtractor={(item) => item.id}
+            keyExtractor={getId}
             contentContainerStyle={{ paddingHorizontal: spacing.md }}
             keyboardShouldPersistTaps="handled"
             renderItem={({ item, index }) => (
@@ -92,12 +111,17 @@ export function SearchModal({ visible, onClose, tracks, onSelectTrack }: Props) 
                 style={styles.resultRow}
                 onPress={() => handleSelect(item, index, results)}
               >
-                <ThemedText variant="body">{item.title}</ThemedText>
+                <ThemedText variant="body">{getLabel(item)}</ThemedText>
+                {getSubLabel && (
+                  <ThemedText variant="muted" style={{ fontSize: 12, marginTop: 2 }}>
+                    {getSubLabel(item)}
+                  </ThemedText>
+                )}
               </Pressable>
             )}
             ListEmptyComponent={
               <ThemedText variant="muted" style={{ marginTop: spacing.lg, textAlign: "center" }}>
-                No songs found for "{query}"
+                No {emptyLabel} found for "{query}"
               </ThemedText>
             }
           />

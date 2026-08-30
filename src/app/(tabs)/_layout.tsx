@@ -1,7 +1,7 @@
 import { View } from "react-native";
 import { Tabs } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Music, Library, Download } from "lucide-react-native";
+import { Music, Library, Download, Settings as SettingsIcon } from "lucide-react-native";
 import { colors } from "../../constants/theme";
 import { MiniPlayer } from "../../components/ui/mini-player";
 import { NowPlayingModal } from "../../components/ui/now-playing-modal";
@@ -44,6 +44,13 @@ export default function TabLayout() {
           options={{
             title: "Download",
             tabBarIcon: ({ color, size }) => <Download color={color} size={size} />,
+          }}
+        />
+        <Tabs.Screen
+          name="settings"
+          options={{
+            title: "Settings",
+            tabBarIcon: ({ color, size }) => <SettingsIcon color={color} size={size} />,
           }}
         />
       </Tabs>

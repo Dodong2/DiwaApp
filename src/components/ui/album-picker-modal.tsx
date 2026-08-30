@@ -1,8 +1,12 @@
+import { useState } from "react";
 import { FlatList, Modal, Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Search } from "lucide-react-native";
 import { colors, radius, spacing } from "../../constants/theme";
-import { usePhotoAlbums } from "../../hooks/use-photo-album";
+import { usePhotoAlbums, PhotoAlbum } from "../../hooks/use-photo-album";
+import { useAlbumSearchHistoryStore } from "../../store/search-history-store";
 import { ThemedText } from "./themed-text";
+import { SearchModal } from "./search-modal";
 
 type Props = {
   visible: boolean;
@@ -13,17 +17,25 @@ type Props = {
 export function AlbumPickerModal({ visible, onClose, onSelect }: Props) {
   const insets = useSafeAreaInsets();
   const { albums, loading } = usePhotoAlbums();
+  const [searchVisible, setSearchVisible] = useState(false);
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.backdrop}>
         <View style={[styles.sheet, { paddingBottom: spacing.lg + insets.bottom }]}>
-          <ThemedText variant="title" style={{ marginBottom: spacing.sm }}>
-            Pick a photo album
-          </ThemedText>
-          <ThemedText variant="muted" style={{ marginBottom: spacing.md }}>
-            Photos from this album will show as art for this mood.
-          </ThemedText>
+          <View style={styles.headerRow}>
+            <View style={{ flex: 1 }}>
+              <ThemedText variant="title" style={{ marginBottom: spacing.sm }}>
+                Pick a photo album
+              </ThemedText>
+              <ThemedText variant="muted" style={{ marginBottom: spacing.md }}>
+                Photos from this album will show as art for this mood.
+              </ThemedText>
+            </View>
+            <Pressable onPress={() => setSearchVisible(true)} style={{ padding: 4 }}>
+              <Search color={colors.cream} size={20} />
+            </Pressable>
+          </View>
 
           {loading && <ThemedText variant="muted">Loading albums...</ThemedText>}
 
@@ -53,6 +65,23 @@ export function AlbumPickerModal({ visible, onClose, onSelect }: Props) {
           </Pressable>
         </View>
       </View>
+
+      <SearchModal<PhotoAlbum>
+        visible={searchVisible}
+        onClose={() => setSearchVisible(false)}
+        items={albums}
+        getId={(a) => a.id}
+        getLabel={(a) => a.title}
+        getSubLabel={(a) => `${a.assetCount} photos`}
+        onSelect={(album) => {
+          onSelect(album.id);
+          setSearchVisible(false);
+          onClose();
+        }}
+        useHistoryStore={useAlbumSearchHistoryStore}
+        placeholder="Search photo albums"
+        emptyLabel="albums"
+      />
     </Modal>
   );
 }
@@ -69,6 +98,11 @@ const styles = StyleSheet.create({
     borderTopRightRadius: radius.lg,
     padding: spacing.lg,
     maxHeight: "75%",
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.sm,
   },
   row: {
     flexDirection: "row",

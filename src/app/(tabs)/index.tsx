@@ -7,6 +7,7 @@ import { Button } from "../../components/ui/button";
 import { SearchModal } from "../../components/ui/search-modal";
 import { useMusicLibrary, Track } from "../../hooks/use-music-library";
 import { usePlayerActions, usePlayerStore } from "../../store/player-store";
+import { useMusicSearchHistoryStore } from "../../store/search-history-store";
 import { colors, spacing } from "../../constants/theme";
 
 export default function AllMusicScreen() {
@@ -71,8 +72,13 @@ export default function AllMusicScreen() {
       <SearchModal
         visible={searchVisible}
         onClose={() => setSearchVisible(false)}
-        tracks={tracks}
-        onSelectTrack={handleSelectFromSearch}
+        items={tracks}
+        getId={(t) => t.id}
+        getLabel={(t) => t.title}
+        onSelect={handleSelectFromSearch}
+        useHistoryStore={useMusicSearchHistoryStore}
+        placeholder="Search your music"
+        emptyLabel="songs"
       />
     </Screen>
   );
