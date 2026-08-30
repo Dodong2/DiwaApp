@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Modal, View, Pressable, StyleSheet, Image } from "react-native";
+import { useEffect, useState, useRef } from "react";
+import { Modal, View, Pressable, StyleSheet, Image, PanResponder } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { X, Minimize2, SkipBack, SkipForward, Play, Pause } from "lucide-react-native";
 import { ThemedText } from "./themed-text";
@@ -33,6 +33,48 @@ export function NowPlayingModal() {
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [albumPickerVisible, setAlbumPickerVisible] = useState(false);
 
+  // --- Interactive progress bar (tap or drag to seek) ---
+  const [scrubPct, setScrubPct] = useState<number | null>(null); // null = not dragging, use real progress
+  const barRef = useRef<View>(null);
+  const barLayoutRef = useRef({ x: 0, width: 0 });
+  const durationRef = useRef(duration);
+  useEffect(() => {
+    durationRef.current = duration;
+  }, [duration]);
+
+  const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
+
+  const measureBar = () => {
+    barRef.current?.measure((_fx, _fy, width, _height, pageX) => {
+      barLayoutRef.current = { x: pageX, width };
+    });
+  };
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: (_evt, gestureState) => {
+        const { x, width } = barLayoutRef.current;
+        if (width === 0) return;
+        setScrubPct(clamp01((gestureState.x0 - x) / width));
+      },
+      onPanResponderMove: (_evt, gestureState) => {
+        const { x, width } = barLayoutRef.current;
+        if (width === 0) return;
+        setScrubPct(clamp01((gestureState.moveX - x) / width));
+      },
+      onPanResponderRelease: () => {
+        setScrubPct((pct) => {
+          if (pct !== null) {
+            actions?.seekTo(pct * durationRef.current);
+          }
+          return null;
+        });
+      },
+    })
+  ).current;
+
   // Pick a new random photo every time the track changes (or the linked album changes).
   useEffect(() => {
     if (!currentTrack) return;
@@ -49,7 +91,8 @@ export function NowPlayingModal() {
 
   if (!currentTrack) return null;
 
-  const progress = duration > 0 ? currentTime / duration : 0;
+  const progress = scrubPct !== null ? scrubPct : duration > 0 ? currentTime / duration : 0;
+  const displayTime = scrubPct !== null ? scrubPct * duration : currentTime;
 
   return (
     <Modal visible={isExpanded} animationType="slide" onRequestClose={() => usePlayerStore.getState().minimize()}>
@@ -85,14 +128,22 @@ export function NowPlayingModal() {
           </ThemedText>
         </View>
 
-        {/* Progress bar */}
+        {/* Progress bar — tap or drag to seek */}
         <View style={{ marginTop: spacing.lg }}>
-          <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
+          <View
+            ref={barRef}
+            onLayout={measureBar}
+            style={styles.progressHitArea}
+            {...panResponder.panHandlers}
+          >
+            <View style={styles.progressTrack}>
+              <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
+              <View style={[styles.progressThumb, { left: `${progress * 100}%` }]} />
+            </View>
           </View>
           <View style={styles.timeRow}>
             <ThemedText variant="muted" style={{ fontSize: 12 }}>
-              {formatTime(currentTime)}
+              {formatTime(displayTime)}
             </ThemedText>
             <ThemedText variant="muted" style={{ fontSize: 12 }}>
               {formatTime(duration)}
@@ -163,16 +214,28 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: radius.sm,
   },
+  progressHitArea: {
+    paddingVertical: 12, // bigger invisible touch target, since a 4px bar is too thin to tap accurately
+    justifyContent: "center",
+  },
   progressTrack: {
     height: 4,
     borderRadius: 2,
     backgroundColor: colors.surface,
-    overflow: "hidden",
   },
   progressFill: {
     height: "100%",
     backgroundColor: colors.orange,
     borderRadius: 2,
+  },
+  progressThumb: {
+    position: "absolute",
+    top: -6,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: colors.orange,
+    marginLeft: -8, // center the thumb over the exact progress point
   },
   timeRow: {
     flexDirection: "row",

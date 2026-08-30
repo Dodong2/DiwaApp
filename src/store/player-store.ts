@@ -6,7 +6,8 @@ type PlayerActions = {
   togglePlayPause: () => void;
   next: () => void;
   previous: () => void;
-  stop: () => void; // pauses and clears the queue entirely (used by the "close" button)
+  stop: () => void;
+  seekTo: (seconds: number) => void;
 };
 
 type PlayerState = {

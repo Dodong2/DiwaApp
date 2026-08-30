@@ -47,6 +47,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         next: () => playlist.next(),
         previous: () => playlist.previous(),
         stop,
+        seekTo: (seconds: number) => {
+          playlist.seekTo(seconds);
+        },
       },
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
