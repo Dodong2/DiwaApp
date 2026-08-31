@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { Modal, View, Pressable, StyleSheet, Image, PanResponder } from "react-native";
+import { EaseView } from "react-native-ease";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { X, Minimize2, SkipBack, SkipForward, Play, Pause } from "lucide-react-native";
 import { ThemedText } from "./themed-text";
@@ -60,19 +61,30 @@ export function NowPlayingModal() {
           </Pressable>
         </View>
 
-        {/* Big art — no longer tappable, the album is set from Settings now */}
-        <View style={styles.artWrapper}>
+        {/* Big art — fades and scales in each time this screen opens, tied
+            directly to isExpanded so it re-triggers on every open (the
+            Modal keeps its children mounted even when hidden, so this
+            can't rely on a mount effect — it has to react to the prop). */}
+        <EaseView
+          style={styles.artWrapper}
+          animate={{ opacity: isExpanded ? 1 : 0, scale: isExpanded ? 1 : 0.92 }}
+          transition={{ type: "timing", duration: 280 }}
+        >
           {imageUri && (
             <Image source={{ uri: imageUri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
           )}
-        </View>
+        </EaseView>
 
-        {/* Track info */}
-        <View style={{ marginTop: spacing.lg, alignItems: "center" }}>
+        {/* Track info — same idea, slightly simpler motion (fade + rise) */}
+        <EaseView
+          style={{ marginTop: spacing.lg, alignItems: "center" }}
+          animate={{ opacity: isExpanded ? 1 : 0, translateY: isExpanded ? 0 : 12 }}
+          transition={{ type: "timing", duration: 280 }}
+        >
           <ThemedText variant="title" style={{ textAlign: "center" }} numberOfLines={2}>
             {currentTrack.title}
           </ThemedText>
-        </View>
+        </EaseView>
 
         {/* Progress bar — isolated into its own component so dragging doesn't
             re-render this whole screen (that was the cause of the flicker) */}

@@ -84,14 +84,6 @@ export function MoodCard({
             <Play color={colors.bg} size={22} fill={colors.bg} />
           )}
         </Pressable>
-
-        {!linkedAlbumId && (
-          <View style={styles.linkHint}>
-            <ThemedText variant="muted" style={styles.linkHintText}>
-              Tap to set photo album
-            </ThemedText>
-          </View>
-        )}
       </ImageBackground>
     </Pressable>
   );
@@ -130,18 +122,5 @@ const styles = StyleSheet.create({
     backgroundColor: colors.orange,
     alignItems: "center",
     justifyContent: "center",
-  },
-  linkHint: {
-    position: "absolute",
-    top: spacing.sm,
-    right: spacing.sm,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    borderRadius: radius.sm,
-    zIndex: 1,
-  },
-  linkHintText: {
-    fontSize: 11,
   },
 });
