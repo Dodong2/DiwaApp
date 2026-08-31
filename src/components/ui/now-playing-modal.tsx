@@ -51,16 +51,7 @@ export function NowPlayingModal() {
   return (
     <Modal visible={isExpanded} animationType="slide" onRequestClose={() => usePlayerStore.getState().minimize()}>
       <View style={[styles.container, { paddingTop: insets.top + spacing.sm, paddingBottom: insets.bottom + spacing.lg }]}>
-        {/* Header: close (left) and resize/minimize (right) */}
-        <View style={styles.header}>
-          <Pressable onPress={() => actions?.stop()} style={styles.iconButton}>
-            <X color={colors.cream} size={24} />
-          </Pressable>
-          <Pressable onPress={() => usePlayerStore.getState().minimize()} style={styles.iconButton}>
-            <Minimize2 color={colors.cream} size={22} />
-          </Pressable>
-        </View>
-
+        {/* header: Image */}
         {/* Big art — fades and scales in each time this screen opens, tied
             directly to isExpanded so it re-triggers on every open (the
             Modal keeps its children mounted even when hidden, so this
@@ -96,20 +87,30 @@ export function NowPlayingModal() {
 
         {/* Transport controls */}
         <View style={styles.controls}>
-          <Pressable onPress={() => actions?.previous()} style={styles.sideButton}>
+          <AnimatedIconButton onPress={() => actions?.previous()} style={styles.sideButton}>
             <SkipBack color={colors.cream} size={30} fill={colors.cream} />
-          </Pressable>
+          </AnimatedIconButton>
 
-          <Pressable onPress={() => actions?.togglePlayPause()} style={styles.playButton}>
-            {isPlaying ? (
-              <Pause color={colors.bg} size={32} fill={colors.bg} />
-            ) : (
-              <Play color={colors.bg} size={32} fill={colors.bg} />
-            )}
-          </Pressable>
+        <AnimatedIconButton onPress={() => actions?.togglePlayPause()} style={styles.playButton}>
+          {isPlaying ? (
+        <Pause color={colors.bg} size={32} fill={colors.bg} />
+          ) : (
+        <Play color={colors.bg} size={32} fill={colors.bg} />
+          )}
+        </AnimatedIconButton>
 
-          <Pressable onPress={() => actions?.next()} style={styles.sideButton}>
-            <SkipForward color={colors.cream} size={30} fill={colors.cream} />
+        <AnimatedIconButton onPress={() => actions?.next()} style={styles.sideButton}>
+          <SkipForward color={colors.cream} size={30} fill={colors.cream} />
+        </AnimatedIconButton>
+      </View>
+
+        {/* buttom: close (left) and resize/minimize (right) */}
+        <View style={styles.header}>
+          <Pressable onPress={() => actions?.stop()} style={styles.iconButton}>
+            <X color={colors.cream} size={24} />
+          </Pressable>
+          <Pressable onPress={() => usePlayerStore.getState().minimize()} style={styles.iconButton}>
+            <Minimize2 color={colors.cream} size={22} />
           </Pressable>
         </View>
       </View>
@@ -199,6 +200,36 @@ function ProgressBar({
   );
 }
 
+function AnimatedIconButton({
+  onPress,
+  style,
+  children,
+  scaleTo = 0.9,
+}: {
+  onPress: () => void;
+  style?: any;
+  children: React.ReactNode;
+  scaleTo?: number;
+}) {
+  const [pressed, setPressed] = useState(false);
+
+  return (
+    <Pressable
+      onPress={onPress}
+      onPressIn={() => setPressed(true)}
+      onPressOut={() => setPressed(false)}
+    >
+      <EaseView
+        style={style}
+        animate={{ scale: pressed ? scaleTo : 1 }}
+        transition={{ type: "timing", duration: 120 }}
+      >
+        {children}
+      </EaseView>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -267,4 +298,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  playButtonPressed: {
+  transform: [{ scale: 0.9 }],
+},
 });
