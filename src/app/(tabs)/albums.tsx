@@ -13,6 +13,7 @@ import { useFoldersStore, Folder } from "../../store/folders-store";
 import { usePlayerActions } from "../../store/player-store";
 import { useAlbumSearchHistoryStore } from "../../store/search-history-store";
 import { colors, spacing } from "../../constants/theme";
+import { AnimatedIconButton } from "@/components/ui/animated-icon-button";
 
 export default function AlbumsScreen() {
   const { tracks } = useMusicLibrary();
@@ -43,9 +44,9 @@ export default function AlbumsScreen() {
       <ScrollView contentContainerStyle={{ paddingTop: spacing.md, paddingBottom: 140, gap: spacing.md }}>
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
           <ThemedText variant="title">Albums</ThemedText>
-          <Pressable onPress={() => setSearchVisible(true)} style={{ padding: 4 }}>
+          <AnimatedIconButton onPress={() => setSearchVisible(true)}>
             <Search color={colors.cream} size={22} />
-          </Pressable>
+          </AnimatedIconButton>
         </View>
 
         <View style={{ flexDirection: "row", gap: spacing.md }}>

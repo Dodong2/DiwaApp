@@ -9,6 +9,7 @@ import { useMusicLibrary, Track } from "../../hooks/use-music-library";
 import { usePlayerActions, usePlayerStore } from "../../store/player-store";
 import { useMusicSearchHistoryStore } from "../../store/search-history-store";
 import { colors, spacing } from "../../constants/theme";
+import { AnimatedIconButton } from "@/components/ui/animated-icon-button";
 
 export default function AllMusicScreen() {
   const { permission, tracks, loading, requestAccess } = useMusicLibrary();
@@ -42,9 +43,9 @@ export default function AllMusicScreen() {
     <Screen>
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: spacing.md, marginBottom: spacing.md }}>
         <ThemedText variant="title">All Music</ThemedText>
-        <Pressable onPress={() => setSearchVisible(true)} style={{ padding: 4 }}>
+        <AnimatedIconButton onPress={() => setSearchVisible(true)}>
           <Search color={colors.cream} size={22} />
-        </Pressable>
+        </AnimatedIconButton>
       </View>
 
       {loading && <ThemedText variant="muted">Loading your music...</ThemedText>}

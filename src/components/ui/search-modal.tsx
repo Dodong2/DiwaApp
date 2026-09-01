@@ -181,6 +181,7 @@ const styles = StyleSheet.create({
   },
   iconButton: {
     padding: 4,
+    transform: [{ scale: 0.9 }],
   },
   searchBar: {
     flex: 1,
