@@ -13,6 +13,7 @@ type FoldersStore = {
   linkAlbum: (folderId: string, albumId: string) => void;
   removeTrackFromFolder: (folderId: string, trackId: string) => void;
   addTrackToFolder: (folderId: string, trackId: string) => void;
+  renameFolder: (folderId: string, newName: string) => void;
 };
 
 export const useFoldersStore = create<FoldersStore>((set) => ({
@@ -48,6 +49,13 @@ export const useFoldersStore = create<FoldersStore>((set) => ({
         f.id === folderId && !f.trackIds.includes(trackId)
           ? { ...f, trackIds: [...f.trackIds, trackId] }
           : f
+      ),
+    })),
+
+  renameFolder: (folderId, newName) =>
+    set((state) => ({
+      folders: state.folders.map((f) =>
+        f.id === folderId && newName.trim() ? { ...f, name: newName.trim() } : f
       ),
     })),
 }));

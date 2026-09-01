@@ -1,9 +1,13 @@
 import { useEffect, useState } from "react";
-import { Modal, View, Pressable, FlatList, Image, StyleSheet } from "react-native";
+import { Modal, View, Pressable, FlatList, Image, TextInput, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ArrowLeft, Play, Pause } from "lucide-react-native";
+import { ArrowLeft, MoreVertical, Play, Pause, X, Plus, Check } from "lucide-react-native";
 import { ThemedText } from "./themed-text";
 import { AlbumPickerModal } from "./album-picker-modal";
+import { AddMusicModal } from "./add-music-modal";
+import { AnimatedIconButton } from "./animated-icon-button";
+import { Toast } from "./toast";
+import { useToastStore } from "../../store/toast-store";
 import { getRandomPhotoFromAlbum } from "../../hooks/use-photo-album";
 import { Track } from "../../hooks/use-music-library";
 import { Folder, useFoldersStore } from "../../store/folders-store";
@@ -23,24 +27,30 @@ export function AlbumPlayerModal({ visible, onClose, folder, allTracks }: Props)
   const isPlaying = useIsPlaying();
   const actions = usePlayerActions();
   const linkAlbum = useFoldersStore((s) => s.linkAlbum);
+  const removeTrackFromFolder = useFoldersStore((s) => s.removeTrackFromFolder);
+  const renameFolder = useFoldersStore((s) => s.renameFolder);
 
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [albumPickerVisible, setAlbumPickerVisible] = useState(false);
+  const [addMusicVisible, setAddMusicVisible] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [titleDraft, setTitleDraft] = useState("");
 
-  // Resolve this folder's trackIds into full Track objects, preserving the
-  // order the user added them in — this order is also what "N" is based on.
   const folderTracks: Track[] = folder
     ? folder.trackIds
         .map((id) => allTracks.find((t) => t.id === id))
         .filter((t): t is Track => Boolean(t))
     : [];
 
+  // Tracks not yet in this folder — what the "Add music" modal offers.
+  const availableToAdd: Track[] = folder
+    ? allTracks.filter((t) => !folder.trackIds.includes(t.id))
+    : [];
+
   const isThisFolderActive = currentTrack
     ? folder?.trackIds.includes(currentTrack.id) ?? false
     : false;
 
-  // New random photo every time the currently-playing track changes,
-  // as long as it belongs to this folder.
   useEffect(() => {
     if (!folder) return;
 
@@ -56,6 +66,17 @@ export function AlbumPlayerModal({ visible, onClose, folder, allTracks }: Props)
     });
   }, [currentTrack?.id, folder?.linkedAlbumId, folder?.id]);
 
+  // Reset edit mode whenever this modal closes.
+  useEffect(() => {
+    if (!visible) setEditMode(false);
+  }, [visible]);
+
+  // Sync the rename draft with the folder's real name whenever edit mode
+  // turns on (or the folder itself changes while editing).
+  useEffect(() => {
+    if (editMode && folder) setTitleDraft(folder.name);
+  }, [editMode, folder?.name]);
+
   if (!folder) return null;
 
   const handleTrackPress = (index: number) => {
@@ -70,33 +91,58 @@ export function AlbumPlayerModal({ visible, onClose, folder, allTracks }: Props)
     }
   };
 
+  const handleRemoveTrack = (track: Track) => {
+    removeTrackFromFolder(folder.id, track.id);
+    useToastStore.getState().show(`Removed from "${folder.name}"`);
+  };
+
+  const handleSaveTitle = () => {
+    const trimmed = titleDraft.trim();
+    if (trimmed && trimmed !== folder.name) {
+      renameFolder(folder.id, trimmed);
+      useToastStore.getState().show(`Renamed to "${trimmed}"`);
+    }
+  };
+
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <View style={[styles.container, { paddingTop: insets.top + spacing.sm }]}>
-        <Pressable onPress={onClose} style={styles.backButton}>
-          <ArrowLeft color={colors.cream} size={22} />
-        </Pressable>
+        <Toast />
 
-        {/* Big art — tap to set/change the linked photo album */}
-        <Pressable style={styles.artWrapper} onPress={() => setAlbumPickerVisible(true)}>
+        {/* Header: back (left), edit toggle (right) */}
+        <View style={styles.header}>
+          <AnimatedIconButton onPress={onClose}>
+            <ArrowLeft color={colors.cream} size={22} />
+          </AnimatedIconButton>
+
+          <AnimatedIconButton onPress={() => setEditMode((v) => !v)}>
+            <MoreVertical color={editMode ? colors.orange : colors.cream} size={22} />
+          </AnimatedIconButton>
+        </View>
+
+        {/* Big art — tappable to set/change the linked photo album, only in edit mode */}
+        <Pressable
+          style={styles.artWrapper}
+          onPress={() => editMode && setAlbumPickerVisible(true)}
+        >
           {imageUri && (
-            <Image source={{ uri: imageUri }} style={[StyleSheet.absoluteFill, styles.artImage]} resizeMode="cover" />
+            <Image
+              source={{ uri: imageUri }}
+              style={[StyleSheet.absoluteFill, styles.artImage]}
+              resizeMode="cover"
+            />
           )}
-          {!folder.linkedAlbumId && (
-            <View style={styles.artHint}>
-              <ThemedText variant="muted" style={{ fontSize: 11 }}>
-                Tap to set photo album
-              </ThemedText>
+
+          {editMode && (
+            <View style={styles.artHintCentered} pointerEvents="none">
+              <ThemedText style={styles.artHintText}>Tap to set photo album</ThemedText>
             </View>
           )}
 
-          {/* Play/Pause pinned to the bottom-center of the image, half-overlapping the edge */}
           <View style={styles.playButtonAnchor} pointerEvents="box-none">
-            <Pressable
-              onPress={(e) => {
-                e.stopPropagation();
-                handlePlayPause();
-              }}
+            <AnimatedIconButton
+              onPress={handlePlayPause}
+              withBackground={false}
               style={styles.playButton}
             >
               {isThisFolderActive && isPlaying ? (
@@ -104,13 +150,37 @@ export function AlbumPlayerModal({ visible, onClose, folder, allTracks }: Props)
               ) : (
                 <Play color={colors.bg} size={26} fill={colors.bg} />
               )}
-            </Pressable>
+            </AnimatedIconButton>
           </View>
         </Pressable>
 
-        <ThemedText variant="title" style={{ marginTop: spacing.xl, marginBottom: spacing.sm }}>
-          {folder.name}
-        </ThemedText>
+        {/* Title row: plain text normally, editable input + "+" add-music
+            button when in edit mode. */}
+        <View style={styles.titleRow}>
+          {editMode ? (
+            <>
+              <TextInput
+                value={titleDraft}
+                onChangeText={setTitleDraft}
+                style={styles.titleInput}
+                onSubmitEditing={handleSaveTitle}
+                returnKeyType="done"
+                autoFocus
+              />
+              <AnimatedIconButton onPress={handleSaveTitle} size={36}>
+                <Check color={colors.orange} size={20} />
+              </AnimatedIconButton>
+            </>
+          ) : (
+            <ThemedText variant="title" style={{ flex: 1 }}>
+              {folder.name}
+            </ThemedText>
+          )}
+
+          <AnimatedIconButton onPress={() => setAddMusicVisible(true)} size={36}>
+            <Plus color={colors.orange} size={22} />
+          </AnimatedIconButton>
+        </View>
 
         <FlatList
           data={folderTracks}
@@ -119,20 +189,25 @@ export function AlbumPlayerModal({ visible, onClose, folder, allTracks }: Props)
           renderItem={({ item, index }) => {
             const isRowActive = currentTrack?.id === item.id;
             return (
-              <Pressable
-                onPress={() => handleTrackPress(index)}
-                style={[styles.trackRow, isRowActive && styles.trackRowActive]}
-              >
-                <ThemedText
-                  variant="body"
-                  style={{ fontWeight: "600", color: isRowActive ? colors.orange : colors.cream }}
-                >
-                  {folder.name} {index + 1}
-                </ThemedText>
-                <ThemedText variant="muted" style={{ fontSize: 12, marginTop: 2 }} numberOfLines={1}>
-                  {item.title}
-                </ThemedText>
-              </Pressable>
+              <View style={[styles.trackRow, isRowActive && styles.trackRowActive]}>
+                <Pressable onPress={() => handleTrackPress(index)} style={{ flex: 1 }}>
+                  <ThemedText
+                    variant="body"
+                    style={{ fontWeight: "600", color: isRowActive ? colors.orange : colors.cream }}
+                  >
+                    {folder.name} {index + 1}
+                  </ThemedText>
+                  <ThemedText variant="muted" style={{ fontSize: 12, marginTop: 2 }} numberOfLines={1}>
+                    {item.title}
+                  </ThemedText>
+                </Pressable>
+
+                {editMode && (
+                  <AnimatedIconButton onPress={() => handleRemoveTrack(item)} size={36}>
+                    <X color={colors.muted} size={18} />
+                  </AnimatedIconButton>
+                )}
+              </View>
             );
           }}
           ListEmptyComponent={
@@ -148,6 +223,14 @@ export function AlbumPlayerModal({ visible, onClose, folder, allTracks }: Props)
         onClose={() => setAlbumPickerVisible(false)}
         onSelect={(albumId) => linkAlbum(folder.id, albumId)}
       />
+
+      <AddMusicModal
+        visible={addMusicVisible}
+        onClose={() => setAddMusicVisible(false)}
+        folderId={folder.id}
+        folderName={folder.name}
+        availableTracks={availableToAdd}
+      />
     </Modal>
   );
 }
@@ -158,29 +241,39 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
     paddingHorizontal: spacing.lg,
   },
-  backButton: {
-    padding: spacing.xs,
-    alignSelf: "flex-start",
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   artWrapper: {
     marginTop: spacing.md,
     width: "100%",
     aspectRatio: 1,
     borderRadius: radius.lg,
-    overflow: "visible", // the play button is allowed to spill past the image edge
+    overflow: "visible",
     backgroundColor: colors.surface,
   },
   artImage: {
     borderRadius: radius.lg,
   },
-  artHint: {
+  artHintCentered: {
     position: "absolute",
-    top: spacing.sm,
-    right: spacing.sm,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    borderRadius: radius.sm,
+    top: "50%",
+    left: spacing.lg,
+    right: spacing.lg,
+    transform: [{ translateY: -18 }],
+    alignItems: "center",
+  },
+  artHintText: {
+    backgroundColor: "rgba(244, 237, 228, 0.9)",
+    color: colors.bg,
+    fontSize: 13,
+    fontWeight: "600",
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.full,
+    overflow: "hidden",
   },
   playButtonAnchor: {
     position: "absolute",
@@ -188,7 +281,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     alignItems: "center",
-    transform: [{ translateY: 28 }], // half the button's height, so it straddles the image's bottom edge
+    transform: [{ translateY: 28 }],
   },
   playButton: {
     width: 56,
@@ -202,7 +295,25 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 6,
   },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    marginTop: spacing.xl,
+    marginBottom: spacing.sm,
+  },
+  titleInput: {
+    flex: 1,
+    color: colors.cream,
+    fontSize: 24,
+    fontWeight: "bold",
+    borderBottomWidth: 1,
+    borderBottomColor: colors.orange,
+    paddingVertical: 2,
+  },
   trackRow: {
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: spacing.sm + 2,
     paddingHorizontal: spacing.sm,
     borderRadius: radius.sm,
