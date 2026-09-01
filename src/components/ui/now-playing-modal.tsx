@@ -2,8 +2,11 @@ import { useEffect, useState, useRef } from "react";
 import { Modal, View, Pressable, StyleSheet, Image, PanResponder } from "react-native";
 import { EaseView } from "react-native-ease";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { X, Minimize2, SkipBack, SkipForward, Play, Pause } from "lucide-react-native";
+import { X, SkipBack, SkipForward, Play, Pause, Shuffle, Repeat, Repeat1 } from "lucide-react-native";
 import { ThemedText } from "./themed-text";
+import { Toast } from "./toast";
+import { AnimatedIconButton } from "./animated-icon-button";
+import { useToastStore } from "../../store/toast-store";
 import {
   useCurrentTrack,
   useIsPlaying,
@@ -11,6 +14,8 @@ import {
   useDuration,
   usePlayerActions,
   useIsExpanded,
+  useIsShuffled,
+  useRepeatMode,
   usePlayerStore,
 } from "../../store/player-store";
 import { useSettingsStore } from "../../store/settings-store";
@@ -26,6 +31,8 @@ export function NowPlayingModal() {
   const currentTime = useCurrentTime();
   const duration = useDuration();
   const actions = usePlayerActions();
+  const isShuffled = useIsShuffled();
+  const repeatMode = useRepeatMode();
 
   // Default album is now set from the Settings tab — this screen just reads it.
   const nowPlayingAlbumId = useSettingsStore((s) => s.nowPlayingAlbumId);
@@ -46,25 +53,50 @@ export function NowPlayingModal() {
     });
   }, [currentTrack?.id, nowPlayingAlbumId]);
 
+  // Swipe down anywhere on the drag handle/art area to minimize.
+  // Defined here (before the early return) since hooks can't come after it.
+  const swipePanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_evt, gestureState) =>
+        gestureState.dy > 10 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx),
+      onPanResponderRelease: (_evt, gestureState) => {
+        if (gestureState.dy > 80) {
+          usePlayerStore.getState().minimize();
+        }
+      },
+    })
+  ).current;
+
   if (!currentTrack) return null;
 
   return (
     <Modal visible={isExpanded} animationType="slide" onRequestClose={() => usePlayerStore.getState().minimize()}>
       <View style={[styles.container, { paddingTop: insets.top + spacing.sm, paddingBottom: insets.bottom + spacing.lg }]}>
-        {/* header: Image */}
-        {/* Big art — fades and scales in each time this screen opens, tied
-            directly to isExpanded so it re-triggers on every open (the
-            Modal keeps its children mounted even when hidden, so this
-            can't rely on a mount effect — it has to react to the prop). */}
-        <EaseView
-          style={styles.artWrapper}
-          animate={{ opacity: isExpanded ? 1 : 0, scale: isExpanded ? 1 : 0.92 }}
-          transition={{ type: "timing", duration: 280 }}
-        >
-          {imageUri && (
-            <Image source={{ uri: imageUri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-          )}
-        </EaseView>
+        <Toast />
+
+        {/* Close — top-right */}
+        <View style={styles.header}>
+          <AnimatedIconButton onPress={() => actions?.stop()}>
+            <X color={colors.cream} size={24} />
+          </AnimatedIconButton>
+        </View>
+
+        {/* Drag handle + swipe-down-to-minimize zone (covers handle + art only,
+            so it doesn't interfere with the progress bar's own drag below it) */}
+        <View {...swipePanResponder.panHandlers}>
+          <View style={styles.dragHandle} />
+
+          <EaseView
+            style={styles.artWrapper}
+            animate={{ opacity: isExpanded ? 1 : 0, scale: isExpanded ? 1 : 0.92 }}
+            transition={{ type: "timing", duration: 280 }}
+          >
+            {imageUri && (
+              <Image source={{ uri: imageUri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+            )}
+          </EaseView>
+        </View>
 
         {/* Track info — same idea, slightly simpler motion (fade + rise) */}
         <EaseView
@@ -87,31 +119,52 @@ export function NowPlayingModal() {
 
         {/* Transport controls */}
         <View style={styles.controls}>
-          <AnimatedIconButton onPress={() => actions?.previous()} style={styles.sideButton}>
+          <AnimatedIconButton onPress={() => actions?.previous()} size={48}>
             <SkipBack color={colors.cream} size={30} fill={colors.cream} />
           </AnimatedIconButton>
 
-        <AnimatedIconButton onPress={() => actions?.togglePlayPause()} style={styles.playButton}>
-          {isPlaying ? (
-        <Pause color={colors.bg} size={32} fill={colors.bg} />
-          ) : (
-        <Play color={colors.bg} size={32} fill={colors.bg} />
-          )}
-        </AnimatedIconButton>
+          <AnimatedIconButton
+            onPress={() => actions?.togglePlayPause()}
+            withBackground={false}
+            style={styles.playButton}
+          >
+            {isPlaying ? (
+              <Pause color={colors.bg} size={32} fill={colors.bg} />
+            ) : (
+              <Play color={colors.bg} size={32} fill={colors.bg} />
+            )}
+          </AnimatedIconButton>
 
-        <AnimatedIconButton onPress={() => actions?.next()} style={styles.sideButton}>
-          <SkipForward color={colors.cream} size={30} fill={colors.cream} />
-        </AnimatedIconButton>
-      </View>
+          <AnimatedIconButton onPress={() => actions?.next()} size={48}>
+            <SkipForward color={colors.cream} size={30} fill={colors.cream} />
+          </AnimatedIconButton>
+        </View>
 
-        {/* buttom: close (left) and resize/minimize (right) */}
-        <View style={styles.header}>
-          <Pressable onPress={() => actions?.stop()} style={styles.iconButton}>
-            <X color={colors.cream} size={24} />
-          </Pressable>
-          <Pressable onPress={() => usePlayerStore.getState().minimize()} style={styles.iconButton}>
-            <Minimize2 color={colors.cream} size={22} />
-          </Pressable>
+        {/* Shuffle and repeat, side by side */}
+        <View style={styles.bottomActions}>
+          <AnimatedIconButton
+            onPress={() => {
+              actions?.toggleShuffle();
+              useToastStore.getState().show(isShuffled ? "Shuffle off" : "Shuffle on");
+            }}
+          >
+            <Shuffle color={isShuffled ? colors.orange : colors.muted} size={22} />
+          </AnimatedIconButton>
+
+          <AnimatedIconButton
+            onPress={() => {
+              const next = repeatMode === "off" ? "all" : repeatMode === "all" ? "one" : "off";
+              actions?.cycleRepeatMode();
+              const label = next === "off" ? "Repeat off" : next === "all" ? "Repeat all" : "Repeat one";
+              useToastStore.getState().show(label);
+            }}
+          >
+            {repeatMode === "one" ? (
+              <Repeat1 color={colors.orange} size={22} />
+            ) : (
+              <Repeat color={repeatMode === "all" ? colors.orange : colors.muted} size={22} />
+            )}
+          </AnimatedIconButton>
         </View>
       </View>
     </Modal>
@@ -200,36 +253,6 @@ function ProgressBar({
   );
 }
 
-function AnimatedIconButton({
-  onPress,
-  style,
-  children,
-  scaleTo = 0.9,
-}: {
-  onPress: () => void;
-  style?: any;
-  children: React.ReactNode;
-  scaleTo?: number;
-}) {
-  const [pressed, setPressed] = useState(false);
-
-  return (
-    <Pressable
-      onPress={onPress}
-      onPressIn={() => setPressed(true)}
-      onPressOut={() => setPressed(false)}
-    >
-      <EaseView
-        style={style}
-        animate={{ scale: pressed ? scaleTo : 1 }}
-        transition={{ type: "timing", duration: 120 }}
-      >
-        {children}
-      </EaseView>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -238,8 +261,14 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    justifyContent: "flex-end",
+  },
+  dragHandle: {
+    alignSelf: "center",
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.muted,
   },
   iconButton: {
     padding: spacing.xs,
@@ -285,7 +314,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: spacing.xl,
-    marginTop: spacing.xl,
+    marginTop: spacing.sm,
   },
   sideButton: {
     padding: spacing.sm,
@@ -298,7 +327,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  playButtonPressed: {
-  transform: [{ scale: 0.9 }],
-},
+  bottomActions: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: spacing.xl,
+    marginTop: spacing.md,
+  },
 });

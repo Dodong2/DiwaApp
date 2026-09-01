@@ -1,19 +1,44 @@
 import { useEffect, useRef, ReactNode } from "react";
 import { useAudioPlaylist, useAudioPlaylistStatus } from "expo-audio";
 import { Track } from "../hooks/use-music-library";
-import { usePlayerStore } from "../store/player-store";
+import { usePlayerStore, RepeatMode } from "../store/player-store";
+
+// Simple Fisher-Yates shuffle — no library needed for this.
+function shuffleArray<T>(arr: T[]): T[] {
+  const result = [...arr];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const playlist = useAudioPlaylist({ sources: [], loop: "all" });
   const status = useAudioPlaylistStatus(playlist);
-  const queueRef = useRef<Track[]>([]);
 
-  const playQueue = (tracks: Track[], startIndex: number) => {
+  // `queueRef` = whatever order is CURRENTLY loaded into the native playlist
+  // (may be shuffled). `originalQueueRef` = the canonical, un-shuffled order
+  // as the user originally requested it — needed so we can restore it when
+  // shuffle is turned back off.
+  const queueRef = useRef<Track[]>([]);
+  const originalQueueRef = useRef<Track[]>([]);
+
+  // Internal helper: loads a given track order into the native playlist,
+  // starting at a given index. Does NOT touch originalQueueRef — only the
+  // public playQueue (a fresh request from a screen) does that.
+  const loadQueue = (tracks: Track[], startIndex: number) => {
     playlist.clear();
     tracks.forEach((t) => playlist.add({ uri: t.uri, name: t.title }));
     queueRef.current = tracks;
     playlist.skipTo(startIndex);
     playlist.play();
+  };
+
+  const playQueue = (tracks: Track[], startIndex: number) => {
+    originalQueueRef.current = tracks;
+    usePlayerStore.setState({ isShuffled: false }); // a fresh queue always starts unshuffled
+    loadQueue(tracks, startIndex);
   };
 
   const togglePlayPause = () => {
@@ -28,15 +53,40 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     playlist.pause();
     playlist.clear();
     queueRef.current = [];
-    // Set this directly too, so the UI updates instantly instead of waiting
-    // for the next async status tick from expo-audio.
+    originalQueueRef.current = [];
     usePlayerStore.setState({
       currentTrack: null,
       isPlaying: false,
       currentTime: 0,
       duration: 0,
       isExpanded: false,
+      isShuffled: false,
     });
+  };
+
+  const toggleShuffle = () => {
+    const currentId = usePlayerStore.getState().currentTrack?.id;
+    const willBeShuffled = !usePlayerStore.getState().isShuffled;
+
+    if (willBeShuffled) {
+      const shuffled = shuffleArray(originalQueueRef.current);
+      const idx = Math.max(0, shuffled.findIndex((t) => t.id === currentId));
+      loadQueue(shuffled, idx);
+    } else {
+      const idx = Math.max(0, originalQueueRef.current.findIndex((t) => t.id === currentId));
+      loadQueue(originalQueueRef.current, idx);
+    }
+
+    usePlayerStore.setState({ isShuffled: willBeShuffled });
+  };
+
+  const cycleRepeatMode = () => {
+    const order: RepeatMode[] = ["off", "all", "one"];
+    const current = usePlayerStore.getState().repeatMode;
+    const next = order[(order.indexOf(current) + 1) % order.length];
+
+    playlist.loop = next === "off" ? "none" : next === "all" ? "all" : "single";
+    usePlayerStore.setState({ repeatMode: next });
   };
 
   useEffect(() => {
@@ -50,6 +100,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         seekTo: (seconds: number) => {
           playlist.seekTo(seconds);
         },
+        toggleShuffle,
+        cycleRepeatMode,
       },
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
