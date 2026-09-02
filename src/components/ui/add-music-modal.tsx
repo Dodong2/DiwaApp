@@ -11,6 +11,8 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Search, X } from "lucide-react-native";
+import { BlurView } from "expo-blur";
+import * as Haptics from "expo-haptics";
 import { ThemedText } from "./themed-text";
 import { Button } from "./button";
 import { Track } from "../../hooks/use-music-library";
@@ -62,6 +64,7 @@ export function AddMusicModal({ visible, onClose, folderId, folderName, availabl
   };
 
   const toggleTrack = (id: string) => {
+    Haptics.selectionAsync();
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
     );
@@ -83,6 +86,8 @@ export function AddMusicModal({ visible, onClose, folderId, folderName, availabl
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <View style={styles.backdrop}>
+          <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
+          <View style={styles.backdropTint} pointerEvents="none" />
           <View style={[styles.sheet, { paddingBottom: spacing.lg + insets.bottom }]}>
             <ThemedText variant="title" style={{ marginBottom: 4 }}>
               Add music to "{folderName}"
@@ -152,10 +157,14 @@ export function AddMusicModal({ visible, onClose, folderId, folderName, availabl
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.6)",
     justifyContent: "center",
     alignItems: "center",
     padding: spacing.md,
+  },
+  backdropTint: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: colors.bg,
+    opacity: 0.35,
   },
   sheet: {
     width: "100%",

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { View, Pressable, StyleSheet } from "react-native";
 import { EaseView } from "react-native-ease";
+import { BlurView } from "expo-blur";
 import { ThemedText } from "./themed-text";
 import {
   useCurrentTrack,
@@ -17,10 +18,6 @@ export function MiniPlayer() {
   const actions = usePlayerActions();
   const isExpanded = useIsExpanded();
 
-  // Once a track has been loaded at least once, keep this component mounted
-  // permanently (even when hidden) so EaseView can animate its fade in/out.
-  // Before the very first track ever plays, we skip rendering entirely —
-  // no point animating an invisible touch area that's never had content.
   const [hasPlayedOnce, setHasPlayedOnce] = useState(false);
   useEffect(() => {
     if (currentTrack) setHasPlayedOnce(true);
@@ -34,9 +31,14 @@ export function MiniPlayer() {
     <EaseView
       style={styles.wrapper}
       animate={{ opacity: visible ? 1 : 0, translateY: visible ? 0 : 16 }}
-      transition={{ type: "timing", duration: 520 }}
+      transition={{ type: "timing", duration: 220 }}
       pointerEvents={visible ? "auto" : "none"}
     >
+      {/* Frosted glass background: blur layer + a subtle color tint on top
+          of it so it still reads as "on brand" rather than plain gray glass. */}
+      <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
+      <View style={styles.glassTint} pointerEvents="none" />
+
       <Pressable
         style={styles.trackInfo}
         onPress={() => usePlayerStore.getState().expand()}
@@ -67,17 +69,22 @@ const styles = StyleSheet.create({
     left: spacing.sm,
     right: spacing.sm,
     bottom: 120,
-    backgroundColor: colors.surface,
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    overflow: "hidden", // required so the blur respects the rounded corners
     shadowColor: "#000",
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 6,
+  },
+  glassTint: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: colors.surface,
+    opacity: 0.45,
   },
   trackInfo: { flex: 1, marginRight: spacing.sm },
   title: { fontWeight: "600" },

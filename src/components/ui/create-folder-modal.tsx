@@ -11,6 +11,8 @@ import {
   Keyboard,
 } from "react-native";
 import { Search, X } from "lucide-react-native";
+import { BlurView } from "expo-blur";
+import * as Haptics from "expo-haptics";
 import { ThemedText } from "./themed-text";
 import { Button } from "./button";
 import { Track } from "../../hooks/use-music-library";
@@ -50,6 +52,7 @@ export function CreateFolderModal({ visible, onClose, availableTracks }: Props) 
 
   const toggleTrack = (id: string) => {
     Keyboard.dismiss();
+    Haptics.selectionAsync();
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
     );
@@ -69,6 +72,8 @@ export function CreateFolderModal({ visible, onClose, availableTracks }: Props) 
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <View style={styles.backdrop}>
+          <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
+          <View style={styles.backdropTint} pointerEvents="none" />
           <View style={styles.sheet}>
             {step === "name" ? (
               <>
@@ -172,10 +177,14 @@ export function CreateFolderModal({ visible, onClose, availableTracks }: Props) 
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.6)",
     justifyContent: "center",
     alignItems: "center",
     padding: spacing.md,
+  },
+  backdropTint: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: colors.bg,
+    opacity: 0.35,
   },
   sheet: {
     width: "100%",

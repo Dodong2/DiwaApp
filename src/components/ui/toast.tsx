@@ -1,8 +1,9 @@
 import { View, StyleSheet } from "react-native";
 import { EaseView } from "react-native-ease";
+import { BlurView } from "expo-blur";
 import { ThemedText } from "./themed-text";
 import { useToastStore } from "../../store/toast-store";
-import { colors, radius, spacing } from "../../constants/theme";
+import { radius, spacing } from "../../constants/theme";
 
 export function Toast() {
   const message = useToastStore((s) => s.message);
@@ -16,6 +17,7 @@ export function Toast() {
       pointerEvents="none"
     >
       <View style={styles.pill}>
+        <BlurView intensity={60} tint="dark" style={StyleSheet.absoluteFill} />
         <ThemedText variant="body" style={styles.text}>
           {message ?? ""}
         </ThemedText>
@@ -34,10 +36,10 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   pill: {
-    backgroundColor: "rgba(50,50,50,0.9)", // simple neutral gray, independent of theme accent colors
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: radius.full,
+    overflow: "hidden", // required so the blur respects the pill's rounded shape
   },
   text: {
     fontSize: 13,

@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { Modal, View, Pressable, StyleSheet, Image, PanResponder } from "react-native";
 import { EaseView } from "react-native-ease";
+import { BlurView } from "expo-blur";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { X, SkipBack, SkipForward, Play, Pause, Shuffle, Repeat, Repeat1 } from "lucide-react-native";
 import { ThemedText } from "./themed-text";
@@ -72,7 +73,19 @@ export function NowPlayingModal() {
 
   return (
     <Modal visible={isExpanded} animationType="slide" onRequestClose={() => usePlayerStore.getState().minimize()}>
-      <View style={[styles.container, { paddingTop: insets.top + spacing.sm, paddingBottom: insets.bottom + spacing.lg }]}>
+      <View style={styles.outer}>
+        {/* Blurred, dimmed version of the same album art, filling the whole
+            screen behind the content — the sharp version stays in the small
+            art card below. This is the classic Apple-Music-style treatment. */}
+        {imageUri && (
+          <>
+            <Image source={{ uri: imageUri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+            <BlurView intensity={90} tint="dark" style={StyleSheet.absoluteFill} />
+            <View style={styles.bgScrim} pointerEvents="none" />
+          </>
+        )}
+
+        <View style={[styles.container, { paddingTop: insets.top + spacing.sm, paddingBottom: insets.bottom + spacing.lg }]}>
         <Toast />
 
         {/* Close — top-right */}
@@ -166,6 +179,7 @@ export function NowPlayingModal() {
             )}
           </AnimatedIconButton>
         </View>
+        </View>
       </View>
     </Modal>
   );
@@ -254,9 +268,17 @@ function ProgressBar({
 }
 
 const styles = StyleSheet.create({
+  outer: {
+    flex: 1,
+    backgroundColor: colors.bg, // fallback color while the blurred art loads or if it fails
+  },
+  bgScrim: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: colors.bg,
+    opacity: 0.55, // keeps text/controls readable over busy or bright photos
+  },
   container: {
     flex: 1,
-    backgroundColor: colors.bg,
     paddingHorizontal: spacing.lg,
   },
   header: {
@@ -268,7 +290,8 @@ const styles = StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: colors.muted,
+    backgroundColor: colors.cream,
+    marginBottom: spacing.md,
   },
   iconButton: {
     padding: spacing.xs,
@@ -314,7 +337,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: spacing.xl,
-    marginTop: spacing.sm,
+    marginTop: spacing.md,
   },
   sideButton: {
     padding: spacing.sm,
@@ -332,6 +355,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     gap: spacing.xl,
-    marginTop: spacing.md,
+    marginTop: spacing.sm, // generous gap from the play controls above, to avoid mis-taps
   },
 });

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Modal, View, Pressable, FlatList, Image, TextInput, StyleSheet } from "react-native";
+import { BlurView } from "expo-blur";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ArrowLeft, MoreVertical, Play, Pause, X, Plus, Check } from "lucide-react-native";
 import { ThemedText } from "./themed-text";
@@ -106,7 +107,19 @@ export function AlbumPlayerModal({ visible, onClose, folder, allTracks }: Props)
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <View style={[styles.container, { paddingTop: insets.top + spacing.sm }]}>
+      <View style={styles.outer}>
+        {/* Blurred, dimmed version of the same art, filling the whole screen
+            behind the content — the sharp version stays in the small art
+            card below. Same treatment as the Now Playing screen. */}
+        {imageUri && (
+          <>
+            <Image source={{ uri: imageUri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+            <BlurView intensity={90} tint="dark" style={StyleSheet.absoluteFill} />
+            <View style={styles.bgScrim} pointerEvents="none" />
+          </>
+        )}
+
+        <View style={[styles.container, { paddingTop: insets.top + spacing.sm }]}>
         <Toast />
 
         {/* Header: back (left), edit toggle (right) */}
@@ -216,6 +229,7 @@ export function AlbumPlayerModal({ visible, onClose, folder, allTracks }: Props)
             </ThemedText>
           }
         />
+        </View>
       </View>
 
       <AlbumPickerModal
@@ -236,9 +250,17 @@ export function AlbumPlayerModal({ visible, onClose, folder, allTracks }: Props)
 }
 
 const styles = StyleSheet.create({
+  outer: {
+    flex: 1,
+    backgroundColor: colors.bg, // fallback while the blurred art loads or if it fails
+  },
+  bgScrim: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: colors.bg,
+    opacity: 0.55,
+  },
   container: {
     flex: 1,
-    backgroundColor: colors.bg,
     paddingHorizontal: spacing.lg,
   },
   header: {

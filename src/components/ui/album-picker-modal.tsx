@@ -2,6 +2,7 @@ import { useState } from "react";
 import { FlatList, Modal, Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Search } from "lucide-react-native";
+import { BlurView } from "expo-blur";
 import { colors, radius, spacing } from "../../constants/theme";
 import { usePhotoAlbums, PhotoAlbum } from "../../hooks/use-photo-album";
 import { useAlbumSearchHistoryStore } from "../../store/search-history-store";
@@ -22,6 +23,8 @@ export function AlbumPickerModal({ visible, onClose, onSelect }: Props) {
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.backdrop}>
+        <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
+        <View style={styles.backdropTint} pointerEvents="none" />
         <View style={[styles.sheet, { paddingBottom: spacing.lg + insets.bottom }]}>
           <View style={styles.headerRow}>
             <View style={{ flex: 1 }}>
@@ -89,8 +92,12 @@ export function AlbumPickerModal({ visible, onClose, onSelect }: Props) {
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.6)",
     justifyContent: "flex-end",
+  },
+  backdropTint: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: colors.bg,
+    opacity: 0.35,
   },
   sheet: {
     backgroundColor: colors.surface,
