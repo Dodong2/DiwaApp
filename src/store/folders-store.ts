@@ -1,10 +1,12 @@
 import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
+import { zustandMMKVStorage } from "../lib/mmkv-storage";
 
 export type Folder = {
   id: string;
   name: string;
   trackIds: string[];
-  linkedAlbumId?: string; // photo album linked for art, set later via AlbumPickerModal
+  linkedAlbumId?: string;
 };
 
 type FoldersStore = {
@@ -16,46 +18,54 @@ type FoldersStore = {
   renameFolder: (folderId: string, newName: string) => void;
 };
 
-export const useFoldersStore = create<FoldersStore>((set) => ({
-  folders: [],
+export const useFoldersStore = create<FoldersStore>()(
+  persist(
+    (set) => ({
+      folders: [],
 
-  addFolder: (name, trackIds) =>
-    set((state) => ({
-      folders: [
-        ...state.folders,
-        { id: Date.now().toString(), name, trackIds },
-      ],
-    })),
+      addFolder: (name, trackIds) =>
+        set((state) => ({
+          folders: [
+            ...state.folders,
+            { id: Date.now().toString(), name, trackIds },
+          ],
+        })),
 
-  linkAlbum: (folderId, albumId) =>
-    set((state) => ({
-      folders: state.folders.map((f) =>
-        f.id === folderId ? { ...f, linkedAlbumId: albumId } : f
-      ),
-    })),
+      linkAlbum: (folderId, albumId) =>
+        set((state) => ({
+          folders: state.folders.map((f) =>
+            f.id === folderId ? { ...f, linkedAlbumId: albumId } : f
+          ),
+        })),
 
-  removeTrackFromFolder: (folderId, trackId) =>
-    set((state) => ({
-      folders: state.folders.map((f) =>
-        f.id === folderId
-          ? { ...f, trackIds: f.trackIds.filter((id) => id !== trackId) }
-          : f
-      ),
-    })),
+      removeTrackFromFolder: (folderId, trackId) =>
+        set((state) => ({
+          folders: state.folders.map((f) =>
+            f.id === folderId
+              ? { ...f, trackIds: f.trackIds.filter((id) => id !== trackId) }
+              : f
+          ),
+        })),
 
-  addTrackToFolder: (folderId, trackId) =>
-    set((state) => ({
-      folders: state.folders.map((f) =>
-        f.id === folderId && !f.trackIds.includes(trackId)
-          ? { ...f, trackIds: [...f.trackIds, trackId] }
-          : f
-      ),
-    })),
+      addTrackToFolder: (folderId, trackId) =>
+        set((state) => ({
+          folders: state.folders.map((f) =>
+            f.id === folderId && !f.trackIds.includes(trackId)
+              ? { ...f, trackIds: [...f.trackIds, trackId] }
+              : f
+          ),
+        })),
 
-  renameFolder: (folderId, newName) =>
-    set((state) => ({
-      folders: state.folders.map((f) =>
-        f.id === folderId && newName.trim() ? { ...f, name: newName.trim() } : f
-      ),
-    })),
-}));
+      renameFolder: (folderId, newName) =>
+        set((state) => ({
+          folders: state.folders.map((f) =>
+            f.id === folderId && newName.trim() ? { ...f, name: newName.trim() } : f
+          ),
+        })),
+    }),
+    {
+      name: "diwa-folders", // this is the actual key used in MMKV storage
+      storage: createJSONStorage(() => zustandMMKVStorage),
+    }
+  )
+);
