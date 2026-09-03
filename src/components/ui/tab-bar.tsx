@@ -1,5 +1,5 @@
 import { View, Pressable, LayoutChangeEvent } from "react-native";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -42,10 +42,19 @@ type CustomTabBarProps = {
 export function CustomTabBar({ state, descriptors, navigation }: CustomTabBarProps) {
   const insets = useSafeAreaInsets();
   const [containerWidth, setContainerWidth] = useState(0);
-  const indicatorX = useSharedValue(0);
 
-  const tabCount = state.routes.length;
-  const barWidth = tabCount * TAB_SIZE + BAR_PADDING * 2;
+  // Initialize base sa current focused index — walang render-time read
+  const indicatorX = useSharedValue(BAR_PADDING + state.index * TAB_SIZE);
+
+  // Sync animation tuwing magbabago ang actual focused tab
+  // (covers both tap AND deep links/back nav)
+  useEffect(() => {
+    indicatorX.value = withSpring(BAR_PADDING + state.index * TAB_SIZE, {
+      damping: 18,
+      stiffness: 220,
+      mass: 0.6,
+    });
+  }, [state.index]);
 
   const onLayout = (e: LayoutChangeEvent) => {
     setContainerWidth(e.nativeEvent.layout.width);
@@ -56,19 +65,14 @@ export function CustomTabBar({ state, descriptors, navigation }: CustomTabBarPro
   }));
 
   const goTo = (index: number, routeName: string, isFocused: boolean) => {
-    indicatorX.value = withSpring(BAR_PADDING + index * TAB_SIZE, {
-      damping: 18,
-      stiffness: 220,
-      mass: 0.6,
-    });
-
-    const event = navigation.emit({
+    // Animation na lang sa useEffect ang bahala, dito navigation call na lang
+    navigation.emit({
       type: "tabPress",
       target: state.routes[index].key,
       canPreventDefault: true,
     });
 
-    if (!isFocused && !event.defaultPrevented) {
+    if (!isFocused) {
       navigation.navigate(routeName);
     }
   };
@@ -87,7 +91,7 @@ export function CustomTabBar({ state, descriptors, navigation }: CustomTabBarPro
       <View
         onLayout={onLayout}
         style={{
-          width: barWidth,
+          width: state.routes.length * TAB_SIZE + BAR_PADDING * 2,
           height: TAB_SIZE + BAR_PADDING * 2,
           borderRadius: radius.full,
           backgroundColor: colors.olive,
@@ -119,10 +123,6 @@ export function CustomTabBar({ state, descriptors, navigation }: CustomTabBarPro
           const { options } = descriptors[route.key];
           const isFocused = state.index === index;
           const Icon = options.tabBarIcon;
-
-          if (isFocused && indicatorX.value === 0 && index !== 0) {
-            indicatorX.value = BAR_PADDING + index * TAB_SIZE;
-          }
 
           return (
             <Pressable
