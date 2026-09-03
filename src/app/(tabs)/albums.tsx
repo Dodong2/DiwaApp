@@ -1,7 +1,7 @@
-import { useState } from "react";
-import { View, ScrollView, Pressable } from "react-native";
+import { useState, useEffect } from "react";
+import { View, ScrollView, Pressable, BackHandler } from "react-native";
 import { EaseView } from "react-native-ease";
-import { ListMusic, Plus, Search, CheckSquare, Trash2 } from "lucide-react-native";
+import { ListMusic, Plus, Search, CheckSquare, Trash2, X } from "lucide-react-native";
 import { Screen } from "../../components/ui/screen";
 import { ThemedText } from "../../components/ui/themed-text";
 import { LibraryTile } from "../../components/ui/library-tile";
@@ -53,6 +53,25 @@ export default function AlbumsScreen() {
     setSelectedIds([folderId]);
   };
 
+  const exitSelectionMode = () => {
+    setSelectionMode(false);
+    setSelectedIds([]);
+  };
+
+  // Intercept the phone's system back button while in selection mode, so it
+  // exits selection mode instead of doing nothing (or navigating away).
+  useEffect(() => {
+    if (!selectionMode) return;
+
+    const onBackPress = () => {
+      exitSelectionMode();
+      return true; // tells Android "handled, don't do the default back action"
+    };
+
+    const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
+    return () => subscription.remove();
+  }, [selectionMode]);
+
   const toggleSelect = (folderId: string) => {
     setSelectedIds((prev) =>
       prev.includes(folderId) ? prev.filter((id) => id !== folderId) : [...prev, folderId]
@@ -69,8 +88,7 @@ export default function AlbumsScreen() {
 
   const handleDeletePress = () => {
     if (selectedIds.length === 0) {
-      // nothing selected — treat as "exit selection mode" instead of showing a pointless confirm dialog
-      setSelectionMode(false);
+      exitSelectionMode();
       return;
     }
     setConfirmDeleteVisible(true);
@@ -80,8 +98,7 @@ export default function AlbumsScreen() {
     const count = selectedIds.length;
     deleteFolders(selectedIds);
     setConfirmDeleteVisible(false);
-    setSelectionMode(false);
-    setSelectedIds([]);
+    exitSelectionMode();
     useToastStore.getState().show(`Deleted ${count} album${count > 1 ? "s" : ""}`);
   };
 
@@ -90,9 +107,15 @@ export default function AlbumsScreen() {
       <ScrollView contentContainerStyle={{ paddingTop: spacing.md, paddingBottom: 140, gap: spacing.md }}>
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
           <ThemedText variant="title">Albums</ThemedText>
-          <Pressable onPress={() => setSearchVisible(true)} style={{ padding: 4 }}>
-            <Search color={colors.cream} size={22} />
-          </Pressable>
+          {selectionMode ? (
+            <AnimatedIconButton onPress={exitSelectionMode}>
+              <X color={colors.cream} size={22} />
+            </AnimatedIconButton>
+          ) : (
+            <Pressable onPress={() => setSearchVisible(true)} style={{ padding: 4 }}>
+              <Search color={colors.cream} size={22} />
+            </Pressable>
+          )}
         </View>
 
         {/* This row crossfades between the two normal tiles and the

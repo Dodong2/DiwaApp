@@ -1,9 +1,8 @@
-import { View, StyleSheet } from "react-native";
+import { View } from "react-native";
 import { Tabs } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { BlurView } from "expo-blur";
 import { Music, Library, Download, Settings as SettingsIcon } from "lucide-react-native";
-import { colors } from "../../constants/theme";
+import { colors, radius, spacing } from "../../constants/theme";
 import { MiniPlayer } from "../../components/ui/mini-player";
 import { NowPlayingModal } from "../../components/ui/now-playing-modal";
 
@@ -16,23 +15,30 @@ export default function TabLayout() {
         screenOptions={{
           headerShown: false,
           tabBarActiveTintColor: colors.orange,
-          tabBarInactiveTintColor: colors.muted,
-          // Floats the tab bar over the content (instead of pushing it up),
-          // which is what lets the blur actually show content behind it.
+          tabBarInactiveTintColor: colors.cream,
+          tabBarLabelStyle: {
+            fontSize: 11,
+            fontWeight: "600",
+            marginTop: 2,
+          },
+          // Floating pill: inset from the screen edges on all sides, fully
+          // rounded, solid olive background — matches the reference image.
           tabBarStyle: {
             position: "absolute",
-            backgroundColor: "transparent",
-            borderTopColor: colors.surface,
-            height: 58 + insets.bottom,
-            paddingBottom: insets.bottom + 6,
-            paddingTop: 6,
+            left: spacing.lg,
+            right: spacing.lg,
+            bottom: insets.bottom + spacing.sm,
+            height: 64,
+            borderRadius: radius.full,
+            backgroundColor: colors.olive,
+            borderTopWidth: 0,
+            paddingTop: spacing.sm,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.3,
+            shadowRadius: 8,
+            elevation: 8,
           },
-          tabBarBackground: () => (
-            <>
-              <BlurView intensity={50} tint="dark" style={StyleSheet.absoluteFill} />
-              <View style={styles.tabGlassTint} pointerEvents="none" />
-            </>
-          ),
         }}
       >
         <Tabs.Screen
@@ -50,6 +56,13 @@ export default function TabLayout() {
           }}
         />
         <Tabs.Screen
+          name="download"
+          options={{
+            title: "Download",
+            tabBarIcon: ({ color, size }) => <Download color={color} size={size} />,
+          }}
+        />
+        <Tabs.Screen
           name="settings"
           options={{
             title: "Settings",
@@ -62,11 +75,3 @@ export default function TabLayout() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  tabGlassTint: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: colors.bg,
-    opacity: 0.55,
-  },
-});
