@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Modal, View, Pressable, FlatList, Image, TextInput, StyleSheet } from "react-native";
 import { EaseView } from "react-native-ease";
 import { BlurView } from "expo-blur";
+import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ArrowLeft, MoreVertical, Play, Pause, X, Plus, Check, Shuffle, Repeat, Repeat1 } from "lucide-react-native";
 import { ThemedText } from "./themed-text";
@@ -136,7 +137,12 @@ export function AlbumPlayerModal({ visible, onClose, folder, allTracks }: Props)
           <>
             <Image source={{ uri: imageUri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
             <BlurView intensity={90} tint="dark" style={StyleSheet.absoluteFill} />
-            <View style={styles.bgScrim} pointerEvents="none" />
+            <LinearGradient
+              colors={["transparent", colors.bg]}
+              locations={[0, 0.85]}
+              style={styles.bottomGradient}
+              pointerEvents="none"
+            />
           </>
         )}
 
@@ -182,40 +188,49 @@ export function AlbumPlayerModal({ visible, onClose, folder, allTracks }: Props)
             </View>
           </EaseView>
 
-          {/* Shuffle — Play/Pause — Repeat, all sharing the same orange
+          {/* Shuffle — Play/Pause — Repeat, all sharing the same gradient
               circle style, pinned at the mid-bottom of the image edge. */}
           <View style={styles.playButtonAnchor} pointerEvents="box-none">
-            <AnimatedIconButton
-              onPress={handleShufflePress}
-              withBackground={false}
-              style={styles.playOptionButton}
-            >
-              <Shuffle color={colors.bg} size={20} />
-            </AnimatedIconButton>
+            <View style={styles.playButtonShadow}>
+              <AnimatedIconButton
+                onPress={handleShufflePress}
+                withBackground={false}
+                gradient={[colors.orange, "#D98800"]}
+                style={styles.plaoptionyButton}
+              >
+                <Shuffle color={colors.bg} size={20} />
+              </AnimatedIconButton>
+            </View>
 
-            <AnimatedIconButton
-              onPress={handlePlayPause}
-              withBackground={false}
-              style={styles.playButton}
-            >
-              {isThisFolderActive && isPlaying ? (
-                <Pause color={colors.bg} size={26} fill={colors.bg} />
-              ) : (
-                <Play color={colors.bg} size={26} fill={colors.bg} />
-              )}
-            </AnimatedIconButton>
+            <View style={styles.playButtonShadow}>
+              <AnimatedIconButton
+                onPress={handlePlayPause}
+                withBackground={false}
+                gradient={[colors.orange, "#D98800"]}
+                style={styles.playButton}
+              >
+                {isThisFolderActive && isPlaying ? (
+                  <Pause color={colors.bg} size={26} fill={colors.bg} />
+                ) : (
+                  <Play color={colors.bg} size={26} fill={colors.bg} />
+                )}
+              </AnimatedIconButton>
+            </View>
 
-            <AnimatedIconButton
-              onPress={handleRepeatPress}
-              withBackground={false}
-              style={styles.playOptionButton}
-            >
-              {repeatMode === "one" ? (
-                <Repeat1 color={colors.bg} size={20} />
-              ) : (
-                <Repeat color={colors.bg} size={20} />
-              )}
-            </AnimatedIconButton>
+            <View style={styles.playButtonShadow}>
+              <AnimatedIconButton
+                onPress={handleRepeatPress}
+                withBackground={false}
+                gradient={[colors.orange, "#D98800"]}
+                style={styles.plaoptionyButton}
+              >
+                {repeatMode === "one" ? (
+                  <Repeat1 color={colors.bg} size={20} />
+                ) : (
+                  <Repeat color={colors.bg} size={20} />
+                )}
+              </AnimatedIconButton>
+            </View>
           </View>
         </Pressable>
 
@@ -305,11 +320,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg, // fallback while the blurred art loads or if it fails
   },
-  bgScrim: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: colors.bg,
-    opacity: 0.55,
-  },
   container: {
     flex: 1,
     paddingHorizontal: spacing.lg,
@@ -329,7 +339,7 @@ const styles = StyleSheet.create({
   },
   artImage: {
     borderRadius: radius.lg,
-    overflow: "hidden",
+    overflow: "hidden", // needed so the BlurView (rendered as a child, not just this style) actually clips to the rounded corners
   },
   artHintCentered: {
     position: "absolute",
@@ -360,29 +370,28 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     transform: [{ translateY: 28 }],
   },
-  playButton: {
-    width: 65,
-    height: 65,
+  playButtonShadow: {
     borderRadius: radius.full,
-    backgroundColor: colors.orange,
-    alignItems: "center",
-    justifyContent: "center",
     shadowColor: "#000",
     shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 6,
   },
-  playOptionButton: {
+  playButton: {
+    width: 60,
+    height: 60,
+    borderRadius: radius.full,
+    overflow: "hidden", // clips the gradient to the circle
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  plaoptionyButton: {
     width: 40,
     height: 40,
     borderRadius: radius.full,
-    backgroundColor: colors.orange,
+    overflow: "hidden", // clips the gradient to the circle
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 6,
   },
   titleRow: {
     flexDirection: "row",
@@ -402,7 +411,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.orange,
     paddingVertical: 0,
-    textAlignVertical: "center", // Android: prevents extra internal padding that grows the field
+    textAlignVertical: "center", 
   },
   trackRow: {
     flexDirection: "row",
@@ -416,4 +425,11 @@ const styles = StyleSheet.create({
   trackRowActive: {
     backgroundColor: colors.surface,
   },
+  bottomGradient: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: "70%"
+    },
 });

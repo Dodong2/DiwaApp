@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { Modal, View, Pressable, StyleSheet, Image, PanResponder } from "react-native";
 import { EaseView } from "react-native-ease";
 import { BlurView } from "expo-blur";
+import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { X, SkipBack, SkipForward, Play, Pause, Shuffle, Repeat, Repeat1 } from "lucide-react-native";
 import { ThemedText } from "./themed-text";
@@ -81,7 +82,12 @@ export function NowPlayingModal() {
           <>
             <Image source={{ uri: imageUri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
             <BlurView intensity={90} tint="dark" style={StyleSheet.absoluteFill} />
-            <View style={styles.bgScrim} pointerEvents="none" />
+            <LinearGradient
+              colors={["transparent", colors.bg]}
+              locations={[0, 0.85]}
+              style={styles.bottomGradient}
+              pointerEvents="none"
+            />
           </>
         )}
 
@@ -139,6 +145,7 @@ export function NowPlayingModal() {
           <AnimatedIconButton
             onPress={() => actions?.togglePlayPause()}
             withBackground={false}
+            gradient={[colors.orange, "#D98800"]}
             style={styles.playButton}
           >
             {isPlaying ? (
@@ -272,11 +279,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg, // fallback color while the blurred art loads or if it fails
   },
-  bgScrim: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: colors.bg,
-    opacity: 0.55, // keeps text/controls readable over busy or bright photos
-  },
   container: {
     flex: 1,
     paddingHorizontal: spacing.lg,
@@ -290,7 +292,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: colors.cream,
+    backgroundColor: colors.muted,
     marginBottom: spacing.md,
   },
   iconButton: {
@@ -337,7 +339,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: spacing.xl,
-    marginTop: spacing.md,
+    marginTop: spacing.sm,
   },
   sideButton: {
     padding: spacing.sm,
@@ -346,7 +348,7 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: radius.full,
-    backgroundColor: colors.orange,
+    overflow: "hidden", // clips the gradient to the circle
     alignItems: "center",
     justifyContent: "center",
   },
@@ -357,4 +359,11 @@ const styles = StyleSheet.create({
     gap: spacing.xl,
     marginTop: spacing.sm, // generous gap from the play controls above, to avoid mis-taps
   },
+  bottomGradient: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: "70%"
+    },
 });

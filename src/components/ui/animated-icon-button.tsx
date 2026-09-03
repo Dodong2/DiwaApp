@@ -1,6 +1,7 @@
 import { useState, ReactNode } from "react";
 import { Pressable, StyleSheet, StyleProp, ViewStyle } from "react-native";
 import { EaseView } from "react-native-ease";
+import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import { colors } from "../../constants/theme";
 
@@ -9,8 +10,9 @@ type Props = {
   children: ReactNode;
   size?: number;
   scaleTo?: number;
-  withBackground?: boolean;
-  haptic?: boolean; // set false for buttons that shouldn't buzz (rare)
+  withBackground?: boolean; // circular olive press-highlight
+  gradient?: readonly [string, string, ...string[]];
+  haptic?: boolean;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -20,6 +22,7 @@ export function AnimatedIconButton({
   size = 44,
   scaleTo = 0.9,
   withBackground = true,
+  gradient,
   haptic = true,
   style,
 }: Props) {
@@ -38,6 +41,15 @@ export function AnimatedIconButton({
         style,
       ]}
     >
+      {gradient && (
+        <LinearGradient
+          colors={gradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+      )}
+
       {withBackground && (
         <EaseView
           style={[StyleSheet.absoluteFill, styles.bgCircle]}

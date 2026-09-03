@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ImageBackground, Pressable, StyleSheet, View } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { Play, Pause, Music2, Shuffle, Repeat, Repeat1 } from "lucide-react-native";
 import { colors, radius, spacing } from "../../constants/theme";
 import { getRandomPhotoFromAlbum } from "../../hooks/use-photo-album";
@@ -93,7 +94,14 @@ export function MoodCard({
           style={styles.image}
           imageStyle={{ borderRadius: radius.lg }}
         >
-          <View style={styles.overlay} pointerEvents="none" />
+          <LinearGradient
+            colors={["transparent", colors.orange]}
+            start={{ x: 0.3, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            locations={[0.35, 1]}
+            style={StyleSheet.absoluteFill}
+            pointerEvents="none"
+          />
 
           {selectionMode && (
             <View style={[styles.checkCircle, selected && styles.checkCircleSelected]}>
@@ -116,10 +124,6 @@ export function MoodCard({
             </View>
           </View>
 
-          {/* Shuffle — Play/Pause — Repeat, three circles in a row.
-              Nested Pressables inside AnimatedIconButton naturally claim the
-              touch before it can reach the outer card's onPress={onPressImage},
-              same as the original single play button used to. */}
           {!selectionMode && (
             <View style={[styles.controlsRow, styles.aboveOverlay]}>
               <AnimatedIconButton
@@ -130,17 +134,20 @@ export function MoodCard({
                 <Shuffle color={isShuffled ? colors.orange : colors.cream} size={16} />
               </AnimatedIconButton>
 
-              <AnimatedIconButton
-                onPress={handlePlayButtonPress}
-                withBackground={false}
-                style={styles.playButton}
-              >
-                {showPause ? (
-                  <Pause color={colors.bg} size={22} fill={colors.bg} />
-                ) : (
-                  <Play color={colors.bg} size={22} fill={colors.bg} />
-                )}
-              </AnimatedIconButton>
+              <View style={styles.playButtonShadow}>
+                <AnimatedIconButton
+                  onPress={handlePlayButtonPress}
+                  withBackground={false}
+                  gradient={[colors.orange, "#D98800"]}
+                  style={styles.playButton}
+                >
+                  {showPause ? (
+                    <Pause color={colors.bg} size={22} fill={colors.bg} />
+                  ) : (
+                    <Play color={colors.bg} size={22} fill={colors.bg} />
+                  )}
+                </AnimatedIconButton>
+              </View>
 
               <AnimatedIconButton
                 onPress={handleRepeatPress}
@@ -179,12 +186,6 @@ const styles = StyleSheet.create({
     height: 256,
     justifyContent: "flex-end",
     padding: spacing.md + 4,
-  },
-  overlay: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: colors.olive,
-    opacity: 0.6,
-    borderRadius: radius.lg,
   },
   aboveOverlay: {
     zIndex: 1,
@@ -237,18 +238,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.md,
   },
-  playButton: {
-    width: 56,
-    height: 56,
+  playButtonShadow: {
     borderRadius: radius.full,
-    backgroundColor: colors.orange,
-    alignItems: "center",
-    justifyContent: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.4,
     shadowRadius: 4,
     elevation: 4,
+  },
+  playButton: {
+    width: 56,
+    height: 56,
+    borderRadius: radius.full,
+    overflow: "hidden", // clips the gradient to the circle
+    alignItems: "center",
+    justifyContent: "center",
   },
   smallCircle: {
     width: 36,
@@ -258,4 +262,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  rightGradient: {
+  position: "absolute",
+  top: 0,
+  right: 0,
+  bottom: 0,
+  width: "45%",
+  },
+  bottomGradient: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: "40%"
+    },
 });
