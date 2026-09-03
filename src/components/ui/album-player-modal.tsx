@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { Modal, View, Pressable, FlatList, Image, TextInput, StyleSheet } from "react-native";
+import { EaseView } from "react-native-ease";
 import { BlurView } from "expo-blur";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ArrowLeft, MoreVertical, Play, Pause, X, Plus, Check } from "lucide-react-native";
+import { ArrowLeft, MoreVertical, Play, Pause, X, Plus, Check, Shuffle, Repeat, Repeat1 } from "lucide-react-native";
 import { ThemedText } from "./themed-text";
 import { AlbumPickerModal } from "./album-picker-modal";
 import { AddMusicModal } from "./add-music-modal";
@@ -12,7 +13,13 @@ import { useToastStore } from "../../store/toast-store";
 import { getRandomPhotoFromAlbum } from "../../hooks/use-photo-album";
 import { Track } from "../../hooks/use-music-library";
 import { Folder, useFoldersStore } from "../../store/folders-store";
-import { useCurrentTrack, useIsPlaying, usePlayerActions } from "../../store/player-store";
+import {
+  useCurrentTrack,
+  useIsPlaying,
+  useIsShuffled,
+  useRepeatMode,
+  usePlayerActions,
+} from "../../store/player-store";
 import { colors, radius, spacing } from "../../constants/theme";
 
 type Props = {
@@ -26,6 +33,8 @@ export function AlbumPlayerModal({ visible, onClose, folder, allTracks }: Props)
   const insets = useSafeAreaInsets();
   const currentTrack = useCurrentTrack();
   const isPlaying = useIsPlaying();
+  const isShuffled = useIsShuffled();
+  const repeatMode = useRepeatMode();
   const actions = usePlayerActions();
   const linkAlbum = useFoldersStore((s) => s.linkAlbum);
   const removeTrackFromFolder = useFoldersStore((s) => s.removeTrackFromFolder);
@@ -92,6 +101,18 @@ export function AlbumPlayerModal({ visible, onClose, folder, allTracks }: Props)
     }
   };
 
+  const handleShufflePress = () => {
+    actions?.toggleShuffle();
+    useToastStore.getState().show(isShuffled ? "Shuffle off" : "Shuffle on");
+  };
+
+  const handleRepeatPress = () => {
+    const next = repeatMode === "off" ? "all" : repeatMode === "all" ? "one" : "off";
+    actions?.cycleRepeatMode();
+    const label = next === "off" ? "Repeat off" : next === "all" ? "Repeat all" : "Repeat one";
+    useToastStore.getState().show(label);
+  };
+
   const handleRemoveTrack = (track: Track) => {
     removeTrackFromFolder(folder.id, track.id);
     useToastStore.getState().show(`Removed from "${folder.name}"`);
@@ -146,13 +167,32 @@ export function AlbumPlayerModal({ visible, onClose, folder, allTracks }: Props)
             />
           )}
 
-          {editMode && (
+          {/* Always mounted (not conditionally rendered) so the opacity
+              change actually animates — a conditional render would just pop
+              in/out instantly instead of fading. */}
+          <EaseView
+            style={[StyleSheet.absoluteFill, styles.artImage]}
+            animate={{ opacity: editMode ? 1 : 0 }}
+            transition={{ type: "timing", duration: 220 }}
+            pointerEvents={editMode ? "auto" : "none"}
+          >
+            <BlurView intensity={90} tint="dark" style={StyleSheet.absoluteFill} />
             <View style={styles.artHintCentered} pointerEvents="none">
               <ThemedText style={styles.artHintText}>Tap to set photo album</ThemedText>
             </View>
-          )}
+          </EaseView>
 
+          {/* Shuffle — Play/Pause — Repeat, all sharing the same orange
+              circle style, pinned at the mid-bottom of the image edge. */}
           <View style={styles.playButtonAnchor} pointerEvents="box-none">
+            <AnimatedIconButton
+              onPress={handleShufflePress}
+              withBackground={false}
+              style={styles.playOptionButton}
+            >
+              <Shuffle color={colors.bg} size={20} />
+            </AnimatedIconButton>
+
             <AnimatedIconButton
               onPress={handlePlayPause}
               withBackground={false}
@@ -162,6 +202,18 @@ export function AlbumPlayerModal({ visible, onClose, folder, allTracks }: Props)
                 <Pause color={colors.bg} size={26} fill={colors.bg} />
               ) : (
                 <Play color={colors.bg} size={26} fill={colors.bg} />
+              )}
+            </AnimatedIconButton>
+
+            <AnimatedIconButton
+              onPress={handleRepeatPress}
+              withBackground={false}
+              style={styles.playOptionButton}
+            >
+              {repeatMode === "one" ? (
+                <Repeat1 color={colors.bg} size={20} />
+              ) : (
+                <Repeat color={colors.bg} size={20} />
               )}
             </AnimatedIconButton>
           </View>
@@ -178,7 +230,6 @@ export function AlbumPlayerModal({ visible, onClose, folder, allTracks }: Props)
                 style={styles.titleInput}
                 onSubmitEditing={handleSaveTitle}
                 returnKeyType="done"
-                autoFocus
               />
               <AnimatedIconButton onPress={handleSaveTitle} size={36}>
                 <Check color={colors.orange} size={20} />
@@ -278,6 +329,7 @@ const styles = StyleSheet.create({
   },
   artImage: {
     borderRadius: radius.lg,
+    overflow: "hidden",
   },
   artHintCentered: {
     position: "absolute",
@@ -302,12 +354,27 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
+    flexDirection: "row",
+    justifyContent: "center",
     alignItems: "center",
+    gap: spacing.md,
     transform: [{ translateY: 28 }],
   },
   playButton: {
-    width: 56,
-    height: 56,
+    width: 65,
+    height: 65,
+    borderRadius: radius.full,
+    backgroundColor: colors.orange,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+  playOptionButton: {
+    width: 40,
+    height: 40,
     borderRadius: radius.full,
     backgroundColor: colors.orange,
     alignItems: "center",
@@ -323,15 +390,19 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     marginTop: spacing.xl,
     marginBottom: spacing.sm,
+    minHeight: 40, // locked so switching between the plain title and the
+    // edit TextInput can't shift the FlatList below it even slightly
   },
   titleInput: {
     flex: 1,
+    height: 40,
     color: colors.cream,
     fontSize: 24,
     fontWeight: "bold",
     borderBottomWidth: 1,
     borderBottomColor: colors.orange,
-    paddingVertical: 2,
+    paddingVertical: 0,
+    textAlignVertical: "center", // Android: prevents extra internal padding that grows the field
   },
   trackRow: {
     flexDirection: "row",

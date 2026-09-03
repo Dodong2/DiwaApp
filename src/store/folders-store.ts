@@ -16,6 +16,7 @@ type FoldersStore = {
   removeTrackFromFolder: (folderId: string, trackId: string) => void;
   addTrackToFolder: (folderId: string, trackId: string) => void;
   renameFolder: (folderId: string, newName: string) => void;
+  deleteFolders: (folderIds: string[]) => void;
 };
 
 export const useFoldersStore = create<FoldersStore>()(
@@ -61,6 +62,11 @@ export const useFoldersStore = create<FoldersStore>()(
           folders: state.folders.map((f) =>
             f.id === folderId && newName.trim() ? { ...f, name: newName.trim() } : f
           ),
+        })),
+
+      deleteFolders: (folderIds) =>
+        set((state) => ({
+          folders: state.folders.filter((f) => !folderIds.includes(f.id)),
         })),
     }),
     {
