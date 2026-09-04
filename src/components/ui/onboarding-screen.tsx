@@ -67,8 +67,8 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
   },
   logo: {
-    width: 88,
-    height: 88,
+    width: 208,
+    height: 208,
     marginBottom: spacing.md,
   },
   appName: {
