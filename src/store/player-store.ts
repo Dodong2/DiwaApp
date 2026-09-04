@@ -4,7 +4,7 @@ import { Track } from "../hooks/use-music-library";
 export type RepeatMode = "off" | "all" | "one";
 
 type PlayerActions = {
-  playQueue: (tracks: Track[], startIndex: number) => void;
+  playQueue: (tracks: Track[], startIndex: number, sourceFolderId?: string) => void;
   togglePlayPause: () => void;
   next: () => void;
   previous: () => void;
@@ -19,12 +19,16 @@ type PlayerState = {
   isPlaying: boolean;
   currentTime: number;
   duration: number;
-  isExpanded: boolean;
+  isExpanded: boolean; // NowPlayingModal visibility
   isShuffled: boolean;
   repeatMode: RepeatMode;
+  currentSourceFolderId: string | null; // which album/folder (if any) the current queue came from
+  openAlbumPlayerFolderId: string | null; // which folder's AlbumPlayerModal should show (null = closed)
   actions: PlayerActions | null;
   expand: () => void;
   minimize: () => void;
+  openAlbumPlayer: (folderId: string) => void;
+  closeAlbumPlayer: () => void;
 };
 
 export const usePlayerStore = create<PlayerState>((set) => ({
@@ -34,10 +38,14 @@ export const usePlayerStore = create<PlayerState>((set) => ({
   duration: 0,
   isExpanded: false,
   isShuffled: false,
-  repeatMode: "all", // matches the playlist's default loop mode
+  repeatMode: "all",
+  currentSourceFolderId: null,
+  openAlbumPlayerFolderId: null,
   actions: null,
   expand: () => set({ isExpanded: true }),
   minimize: () => set({ isExpanded: false }),
+  openAlbumPlayer: (folderId) => set({ openAlbumPlayerFolderId: folderId, isExpanded: false }),
+  closeAlbumPlayer: () => set({ openAlbumPlayerFolderId: null }),
 }));
 
 // Selective selector hooks — each component subscribes only to the slice it needs.
@@ -49,3 +57,5 @@ export const usePlayerActions = () => usePlayerStore((s) => s.actions);
 export const useIsExpanded = () => usePlayerStore((s) => s.isExpanded);
 export const useIsShuffled = () => usePlayerStore((s) => s.isShuffled);
 export const useRepeatMode = () => usePlayerStore((s) => s.repeatMode);
+export const useCurrentSourceFolderId = () => usePlayerStore((s) => s.currentSourceFolderId);
+export const useOpenAlbumPlayerFolderId = () => usePlayerStore((s) => s.openAlbumPlayerFolderId);

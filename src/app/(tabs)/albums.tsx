@@ -7,13 +7,12 @@ import { ThemedText } from "../../components/ui/themed-text";
 import { LibraryTile } from "../../components/ui/library-tile";
 import { MoodCard } from "../../components/ui/mood-card";
 import { CreateFolderModal } from "../../components/ui/create-folder-modal";
-import { AlbumPlayerModal } from "../../components/ui/album-player-modal";
 import { SearchModal } from "../../components/ui/search-modal";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
 import { AnimatedIconButton } from "../../components/ui/animated-icon-button";
 import { useMusicLibrary } from "../../hooks/use-music-library";
 import { useFoldersStore, Folder } from "../../store/folders-store";
-import { usePlayerActions } from "../../store/player-store";
+import { usePlayerActions, usePlayerStore } from "../../store/player-store";
 import { useAlbumSearchHistoryStore } from "../../store/search-history-store";
 import { useToastStore } from "../../store/toast-store";
 import { colors, spacing } from "../../constants/theme";
@@ -25,15 +24,12 @@ export default function AlbumsScreen() {
   const actions = usePlayerActions();
 
   const [createModalVisible, setCreateModalVisible] = useState(false);
-  const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
   const [searchVisible, setSearchVisible] = useState(false);
 
   // Selection mode: entered via long-press on a card.
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [confirmDeleteVisible, setConfirmDeleteVisible] = useState(false);
-
-  const activeFolder = folders.find((f) => f.id === activeFolderId) ?? null;
 
   const handlePlayAllMusic = () => {
     if (tracks.length > 0) actions?.playQueue(tracks, 0);
@@ -45,7 +41,7 @@ export default function AlbumsScreen() {
     const folderTracks = folder.trackIds
       .map((id) => tracks.find((t) => t.id === id))
       .filter((t): t is NonNullable<typeof t> => Boolean(t));
-    if (folderTracks.length > 0) actions?.playQueue(folderTracks, 0);
+    if (folderTracks.length > 0) actions?.playQueue(folderTracks, 0, folder.id);
   };
 
   const handleLongPressCard = (folderId: string) => {
@@ -172,7 +168,7 @@ export default function AlbumsScreen() {
                 fallbackImageUri={`https://picsum.photos/seed/${folder.id}/600/800`}
                 trackIds={folder.trackIds}
                 onPlay={() => handlePlayFolder(folder.id)}
-                onPressImage={() => setActiveFolderId(folder.id)}
+                onPressImage={() => usePlayerStore.getState().openAlbumPlayer(folder.id)}
                 selectionMode={selectionMode}
                 selected={selectedIds.includes(folder.id)}
                 onLongPress={() => handleLongPressCard(folder.id)}
@@ -189,13 +185,6 @@ export default function AlbumsScreen() {
         availableTracks={tracks}
       />
 
-      <AlbumPlayerModal
-        visible={activeFolderId !== null}
-        onClose={() => setActiveFolderId(null)}
-        folder={activeFolder}
-        allTracks={tracks}
-      />
-
       <SearchModal<Folder>
         visible={searchVisible}
         onClose={() => setSearchVisible(false)}
@@ -203,7 +192,7 @@ export default function AlbumsScreen() {
         getId={(f) => f.id}
         getLabel={(f) => f.name}
         getSubLabel={(f) => `${f.trackIds.length} songs`}
-        onSelect={(folder) => setActiveFolderId(folder.id)}
+        onSelect={(folder) => usePlayerStore.getState().openAlbumPlayer(folder.id)}
         useHistoryStore={useAlbumSearchHistoryStore}
         placeholder="Search your albums"
         emptyLabel="albums"

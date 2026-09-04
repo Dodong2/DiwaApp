@@ -91,14 +91,14 @@ export function AlbumPlayerModal({ visible, onClose, folder, allTracks }: Props)
   if (!folder) return null;
 
   const handleTrackPress = (index: number) => {
-    actions?.playQueue(folderTracks, index);
+    actions?.playQueue(folderTracks, index, folder.id);
   };
 
   const handlePlayPause = () => {
     if (isThisFolderActive) {
       actions?.togglePlayPause();
     } else if (folderTracks.length > 0) {
-      actions?.playQueue(folderTracks, 0);
+      actions?.playQueue(folderTracks, 0, folder.id);
     }
   };
 
@@ -140,7 +140,7 @@ export function AlbumPlayerModal({ visible, onClose, folder, allTracks }: Props)
             <LinearGradient
               colors={["transparent", colors.bg]}
               locations={[0, 0.85]}
-              style={styles.bottomGradient}
+              style={StyleSheet.absoluteFill}
               pointerEvents="none"
             />
           </>
@@ -196,7 +196,7 @@ export function AlbumPlayerModal({ visible, onClose, folder, allTracks }: Props)
                 onPress={handleShufflePress}
                 withBackground={false}
                 gradient={[colors.orange, "#D98800"]}
-                style={styles.plaoptionyButton}
+                style={styles.playOptionButton}
               >
                 <Shuffle color={colors.bg} size={20} />
               </AnimatedIconButton>
@@ -222,7 +222,7 @@ export function AlbumPlayerModal({ visible, onClose, folder, allTracks }: Props)
                 onPress={handleRepeatPress}
                 withBackground={false}
                 gradient={[colors.orange, "#D98800"]}
-                style={styles.plaoptionyButton}
+                style={styles.playOptionButton}
               >
                 {repeatMode === "one" ? (
                   <Repeat1 color={colors.bg} size={20} />
@@ -385,7 +385,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  plaoptionyButton: {
+  playOptionButton: {
     width: 40,
     height: 40,
     borderRadius: radius.full,
@@ -411,7 +411,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.orange,
     paddingVertical: 0,
-    textAlignVertical: "center", 
+    textAlignVertical: "center", // Android: prevents extra internal padding that grows the field
   },
   trackRow: {
     flexDirection: "row",
@@ -425,11 +425,4 @@ const styles = StyleSheet.create({
   trackRowActive: {
     backgroundColor: colors.surface,
   },
-  bottomGradient: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: "70%"
-    },
 });

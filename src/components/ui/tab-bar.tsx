@@ -1,4 +1,4 @@
-import { View, Pressable, LayoutChangeEvent } from "react-native";
+import { View, Pressable, LayoutChangeEvent, Platform, StyleSheet } from "react-native";
 import { useEffect, useState } from "react";
 import Animated, {
   useAnimatedStyle,
@@ -6,14 +6,13 @@ import Animated, {
   withSpring,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
+import { BlurView } from "expo-blur";
 import { colors, radius, spacing } from "../../constants/theme";
 
 const TAB_SIZE = 48;
 const BAR_PADDING = 6;
-
-// Minimal local types — sapat na para sa kung ano lang ginagamit natin
-// mula sa tabBar render prop ng expo-router's <Tabs />, walang need
-// mag-install ng @react-navigation/bottom-tabs.
+const glassAvailable = Platform.OS === "ios" && isLiquidGlassAvailable();
 
 type TabRoute = {
   key: string;
@@ -39,15 +38,12 @@ type CustomTabBarProps = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   navigation: any;
 };
+
 export function CustomTabBar({ state, descriptors, navigation }: CustomTabBarProps) {
   const insets = useSafeAreaInsets();
   const [containerWidth, setContainerWidth] = useState(0);
-
-  // Initialize base sa current focused index — walang render-time read
   const indicatorX = useSharedValue(BAR_PADDING + state.index * TAB_SIZE);
 
-  // Sync animation tuwing magbabago ang actual focused tab
-  // (covers both tap AND deep links/back nav)
   useEffect(() => {
     indicatorX.value = withSpring(BAR_PADDING + state.index * TAB_SIZE, {
       damping: 18,
@@ -65,7 +61,6 @@ export function CustomTabBar({ state, descriptors, navigation }: CustomTabBarPro
   }));
 
   const goTo = (index: number, routeName: string, isFocused: boolean) => {
-    // Animation na lang sa useEffect ang bahala, dito navigation call na lang
     navigation.emit({
       type: "tabPress",
       target: state.routes[index].key,
@@ -76,6 +71,9 @@ export function CustomTabBar({ state, descriptors, navigation }: CustomTabBarPro
       navigation.navigate(routeName);
     }
   };
+
+  const barWidth = state.routes.length * TAB_SIZE + BAR_PADDING * 2;
+  const barHeight = TAB_SIZE + BAR_PADDING * 2;
 
   return (
     <View
@@ -91,12 +89,10 @@ export function CustomTabBar({ state, descriptors, navigation }: CustomTabBarPro
       <View
         onLayout={onLayout}
         style={{
-          width: state.routes.length * TAB_SIZE + BAR_PADDING * 2,
-          height: TAB_SIZE + BAR_PADDING * 2,
+          width: barWidth,
+          height: barHeight,
           borderRadius: radius.full,
-          backgroundColor: colors.olive,
-          flexDirection: "row",
-          padding: BAR_PADDING,
+          overflow: "hidden",
           shadowColor: "#000",
           shadowOffset: { width: 0, height: 4 },
           shadowOpacity: 0.3,
@@ -104,47 +100,83 @@ export function CustomTabBar({ state, descriptors, navigation }: CustomTabBarPro
           elevation: 8,
         }}
       >
-        <Animated.View
-          style={[
-            {
-              position: "absolute",
-              top: BAR_PADDING,
-              left: 0,
-              width: TAB_SIZE,
-              height: TAB_SIZE,
-              borderRadius: radius.full,
-              backgroundColor: colors.orange,
-            },
-            indicatorStyle,
-          ]}
-        />
+        {/* Glass/blur background layer */}
+        {glassAvailable ? (
+          <GlassView
+            style={[styles.fill, { borderRadius: radius.full }]}
+            glassEffectStyle="regular"
+            tintColor={colors.olive}
+            isInteractive
+          />
+        ) : (
+          <>
+            <View style={[styles.fill, { backgroundColor: colors.olive }]} />
+            <BlurView intensity={50} tint="dark" style={styles.fill} />
+          </>
+        )}
 
-        {state.routes.map((route, index) => {
-          const { options } = descriptors[route.key];
-          const isFocused = state.index === index;
-          const Icon = options.tabBarIcon;
-
-          return (
-            <Pressable
-              key={route.key}
-              onPress={() => goTo(index, route.name, isFocused)}
-              style={{
+        {/* Content layer */}
+        <View style={{ flexDirection: "row", padding: BAR_PADDING, flex: 1 }}>
+          <Animated.View
+            style={[
+              {
+                position: "absolute",
+                top: BAR_PADDING,
+                left: 0,
                 width: TAB_SIZE,
                 height: TAB_SIZE,
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              {Icon &&
-                Icon({
-                  color: isFocused ? colors.olive : colors.cream,
-                  size: 22,
-                  focused: isFocused,
-                })}
-            </Pressable>
-          );
-        })}
+                borderRadius: radius.full,
+                overflow: "hidden",
+              },
+              indicatorStyle,
+            ]}
+          >
+            {/* Solid base muna — ito ang gumagawa ng makikitang bilog */}
+            <View style={[styles.fill, { backgroundColor: colors.orange }]} />
+
+            {glassAvailable && (
+              <GlassView
+                style={styles.fill}
+                glassEffectStyle="regular"
+                tintColor={colors.orange}
+                isInteractive
+              />
+            )}
+          </Animated.View>
+
+          {state.routes.map((route, index) => {
+            const { options } = descriptors[route.key];
+            const isFocused = state.index === index;
+            const Icon = options.tabBarIcon;
+
+            return (
+              <Pressable
+                key={route.key}
+                onPress={() => goTo(index, route.name, isFocused)}
+                style={{
+                  width: TAB_SIZE,
+                  height: TAB_SIZE,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                {Icon &&
+                  Icon({
+                    color: isFocused ? colors.olive : colors.cream,
+                    size: 22,
+                    focused: isFocused,
+                  })}
+              </Pressable>
+            );
+          })}
+        </View>
       </View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  fill: {
+    ...StyleSheet.absoluteFill,
+  },
+});

@@ -5,22 +5,32 @@ import { Music, Library, Download, Settings as SettingsIcon } from "lucide-react
 import { CustomTabBar } from "../../components/ui/tab-bar";
 import { MiniPlayer } from "../../components/ui/mini-player";
 import { NowPlayingModal } from "../../components/ui/now-playing-modal";
+import { AlbumPlayerModal } from "../../components/ui/album-player-modal";
+import { useMusicLibrary } from "../../hooks/use-music-library";
+import { useFoldersStore } from "../../store/folders-store";
+import { useOpenAlbumPlayerFolderId, usePlayerStore } from "../../store/player-store";
 import { colors } from "@/constants/theme";
-import * as SystemUI from "expo-system-ui"
-
+import * as SystemUI from "expo-system-ui";
 
 export default function TabLayout() {
-
   useEffect(() => {
-  SystemUI.setBackgroundColorAsync(colors.bg);
-}, []);
+    SystemUI.setBackgroundColorAsync(colors.bg);
+  }, []);
+
+  // Mounted globally (not inside albums.tsx) so it can be opened from any
+  // tab — e.g. tapping the mini-player's title while on the "All Music" tab
+  // should still be able to reopen the correct album's player.
+  const { tracks } = useMusicLibrary();
+  const folders = useFoldersStore((s) => s.folders);
+  const openAlbumPlayerFolderId = useOpenAlbumPlayerFolderId();
+  const activeFolder = folders.find((f) => f.id === openAlbumPlayerFolderId) ?? null;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <Tabs
         screenOptions={{
           headerShown: false,
-          animation: "shift", // <- slide transition pag nagpalit ng tab
+          animation: "shift",
           sceneStyle: { backgroundColor: colors.bg },
           transitionSpec: {
             animation: "spring",
@@ -57,6 +67,12 @@ export default function TabLayout() {
       </Tabs>
       <MiniPlayer />
       <NowPlayingModal />
+      <AlbumPlayerModal
+        visible={openAlbumPlayerFolderId !== null}
+        onClose={() => usePlayerStore.getState().closeAlbumPlayer()}
+        folder={activeFolder}
+        allTracks={tracks}
+      />
     </View>
   );
 }

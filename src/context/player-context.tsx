@@ -35,9 +35,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     playlist.play();
   };
 
-  const playQueue = (tracks: Track[], startIndex: number) => {
+  const playQueue = (tracks: Track[], startIndex: number, sourceFolderId?: string) => {
     originalQueueRef.current = tracks;
-    usePlayerStore.setState({ isShuffled: false }); // a fresh queue always starts unshuffled
+    usePlayerStore.setState({
+      isShuffled: false,
+      currentSourceFolderId: sourceFolderId ?? null,
+    });
     loadQueue(tracks, startIndex);
   };
 
@@ -61,6 +64,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       duration: 0,
       isExpanded: false,
       isShuffled: false,
+      currentSourceFolderId: null,
     });
   };
 
