@@ -4,7 +4,6 @@ import { EaseView } from "react-native-ease";
 import { ListMusic, Plus, Search, CheckSquare, Trash2, X } from "lucide-react-native";
 import { Screen } from "../../components/ui/screen";
 import { ScreenHeader } from "../../components/ui/screen-header";
-import { ThemedText } from "../../components/ui/themed-text";
 import { LibraryTile } from "../../components/ui/library-tile";
 import { MoodCard } from "../../components/ui/mood-card";
 import { CreateFolderModal } from "../../components/ui/create-folder-modal";
