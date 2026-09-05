@@ -26,32 +26,31 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const queueRef = useRef<Track[]>([]);
   const originalQueueRef = useRef<Track[]>([]);
 
-  // React to the ACTUAL resolved track (by id), not the raw numeric index —
-  // the index alone can stay at the same number (e.g. 0) across two
-  // genuinely different tracks/queues, which was silently breaking the
-  // metadata updates below.
   const currentTrack = usePlayerStore((s) => s.currentTrack);
 
-  // Real local file:// URI for the app logo, resolved once via expo-asset
-  // (Image.resolveAssetSource alone can return a Metro dev-server HTTP URL
-  // during development, which the native module can't load as artwork).
   const [logoUri, setLogoUri] = useState<string | null>(null);
   useEffect(() => {
     const asset = Asset.fromModule(require("../../assets/images/logo.png"));
     asset.downloadAsync().then(() => {
       const uri = asset.localUri ?? asset.uri;
-      console.log("📱 JS: Resolved logo asset URI:", uri);
       setLogoUri(uri);
     });
   }, []);
 
-  const loadQueue = (tracks: Track[], startIndex: number) => {
-    playlist.clear();
-    tracks.forEach((t) => playlist.add({ uri: t.uri, name: t.title }));
-    queueRef.current = tracks;
-    playlist.skipTo(startIndex);
-    playlist.play();
-  };
+const loadQueue = (tracks: Track[], startIndex: number) => {
+  playlist.clear();
+  tracks.forEach((t) => playlist.add({ uri: t.uri, name: t.title }));
+  queueRef.current = tracks;
+  playlist.skipTo(startIndex);
+  playlist.play();
+
+  // I-enable dito, sa aktwal na simula ng playback — hindi na sa mount
+  // ng buong provider (na tumatakbo kahit wala pang tumutugtog na track).
+  MediaControl.enableMediaControls({
+    capabilities: [Command.PLAY, Command.PAUSE],
+    compactCapabilities: [Command.PLAY],
+  });
+};
 
   const playQueue = (tracks: Track[], startIndex: number, sourceFolderId?: string) => {
     originalQueueRef.current = tracks;
@@ -70,22 +69,26 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const stop = () => {
-    playlist.pause();
-    playlist.clear();
-    queueRef.current = [];
-    originalQueueRef.current = [];
-    usePlayerStore.setState({
-      currentTrack: null,
-      isPlaying: false,
-      currentTime: 0,
-      duration: 0,
-      isExpanded: false,
-      isShuffled: false,
-      currentSourceFolderId: null,
-    });
-    MediaControl.updatePlaybackState(PlaybackState.STOPPED);
-  };
+const stop = () => {
+  playlist.pause();
+  playlist.clear();
+  queueRef.current = [];
+  originalQueueRef.current = [];
+  usePlayerStore.setState({
+    currentTrack: null,
+    isPlaying: false,
+    currentTime: 0,
+    duration: 0,
+    isExpanded: false,
+    isShuffled: false,
+    currentSourceFolderId: null,
+  });
+  // Buong tinatanggal ang MediaSession — hindi lang "STOPPED" na state,
+  // para walang matirang session na puwedeng ipakita ng Android bilang
+  // floating "media resumption" widget.
+  MediaControl.updatePlaybackState(PlaybackState.STOPPED);
+  MediaControl.disableMediaControls();
+};
 
   const toggleShuffle = () => {
     const currentId = usePlayerStore.getState().currentTrack?.id;
@@ -142,23 +145,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   // Simplified to ONLY play/pause, per what was actually asked for — no
   // next/previous/stop buttons cluttering the notification.
   useEffect(() => {
-    MediaControl.enableMediaControls({
-      capabilities: [Command.PLAY, Command.PAUSE],
-      compactCapabilities: [Command.PLAY],
-    });
+  const removeListener = MediaControl.addListener((event: MediaControlEvent) => {
+    if (event.command === Command.PLAY || event.command === Command.PAUSE) {
+      togglePlayPause();
+    }
+  });
 
-    const removeListener = MediaControl.addListener((event: MediaControlEvent) => {
-      if (event.command === Command.PLAY || event.command === Command.PAUSE) {
-        togglePlayPause();
-      }
-    });
-
-    return () => {
-      removeListener();
-      MediaControl.disableMediaControls();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  return () => {
+    removeListener();
+    MediaControl.disableMediaControls();
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
 
   // Metadata — now correctly re-fires whenever the actual track (by id)
   // changes, and waits for a real resolved logo URI before using it.

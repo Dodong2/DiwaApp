@@ -1,17 +1,18 @@
 {
   "expo": {
-    "name": "diwa",
-    "slug": "diwa",
+    "name": "Diwa",
+    "slug": "Diwa",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/logo.png",
-    "scheme": "diwa",
+    "scheme": "Diwa",
     "userInterfaceStyle": "dark",
     "ios": {
       "icon": "./assets/expo.icon",
       "bundleIdentifier": "com.dodong-arocha.diwa"
     },
     "android": {
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#0D0B0C",
         "foregroundImage": "./assets/images/logo.png"
@@ -19,15 +20,11 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.dodong_arocha.diwa",
       "permissions": [
-        "READ_MEDIA_AUDIO",
-        "READ_MEDIA_IMAGES",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
         "android.permission.READ_MEDIA_IMAGES",
-        "android.permission.READ_MEDIA_VIDEO",
         "android.permission.READ_MEDIA_AUDIO",
-        "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS",
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
@@ -36,7 +33,7 @@
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png",
+      "favicon": "./assets/images/logo.png",
       "bundler": "metro"
     },
     "plugins": [

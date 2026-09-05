@@ -1,13 +1,13 @@
-import { useEffect, useState } from "react";
-import { View, Pressable, StyleSheet } from "react-native";
+import { useEffect, useState, useRef } from "react";
+import { View, Pressable, StyleSheet, PanResponder, Dimensions } from "react-native";
 import Animated, {
-  useAnimatedStyle,
   useSharedValue,
-  withSpring,
+  useAnimatedStyle,
   withTiming,
+  withSpring,
   runOnJS,
+  interpolate,
 } from "react-native-reanimated";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { BlurView } from "expo-blur";
 import { ThemedText } from "./themed-text";
 import {
@@ -21,8 +21,8 @@ import {
 import { useFoldersStore } from "../../store/folders-store";
 import { colors, spacing, radius } from "../../constants/theme";
 
-const SWIPE_THRESHOLD = 80;
-const SWIPE_OUT_DISTANCE = 500;
+const SWIPE_THRESHOLD = 100;
+const SCREEN_WIDTH = Dimensions.get("window").width;
 
 export function MiniPlayer() {
   const currentTrack = useCurrentTrack();
@@ -50,80 +50,106 @@ export function MiniPlayer() {
     }
   };
 
-  // Show/hide (dating EaseView) — pinalitan ng reanimated para iisang
-  // consistent animation system na lang ang bahala sa opacity/position.
-  const showProgress = useSharedValue(visible ? 1 : 0);
+  // --- Slide animation (reanimated) ---
+  const translateX = useSharedValue(0); // live horizontal drag offset
+  const showProgress = useSharedValue(0); // 0 = hidden, 1 = visible
+
+  // Tracks whether the mini-player is disappearing because of the swipe
+  // gesture itself (which already plays its own exit animation) — if so,
+  // the normal show/hide effect below should snap instantly instead of
+  // playing a second, redundant fade+slide-down animation.
+  const isDismissingViaSwipeRef = useRef(false);
+
   useEffect(() => {
+    if (isDismissingViaSwipeRef.current) {
+      showProgress.value = visible ? 1 : 0; // instant, no animation — swipe already handled the exit visually
+      isDismissingViaSwipeRef.current = false; // reset for the next time
+      return;
+    }
     showProgress.value = withTiming(visible ? 1 : 0, { duration: 220 });
   }, [visible]);
 
-  // Swipe-to-dismiss — sumusunod sa daliri habang dini-drag
-  const translateX = useSharedValue(0);
+  // Whenever a genuinely new track starts, snap back to center — otherwise
+  // it would reappear already off to whichever side it was last swiped to.
+  useEffect(() => {
+    if (currentTrack) translateX.value = 0;
+  }, [currentTrack?.id]);
 
-  const handleDismiss = () => {
-    actions?.stop();
-    // i-reset para handa ulit sa susunod na track na tutugtugin
-    translateX.value = 0;
+  const stopPlaybackFromSwipe = () => {
+    isDismissingViaSwipeRef.current = true;
+    usePlayerStore.getState().actions?.stop();
   };
 
-  const panGesture = Gesture.Pan()
-    .activeOffsetX([-15, 15]) // horizontal lang ang kukunin, hindi maapektuhan ang taps
-    .failOffsetY([-10, 10])
-    .onUpdate((e) => {
-      // Malayang gumalaw pakaliwa; may "resistance" pag pakanan (di dismiss direction)
-      translateX.value = e.translationX < 0 ? e.translationX : e.translationX * 0.3;
-    })
-    .onEnd((e) => {
-      if (e.translationX < -SWIPE_THRESHOLD) {
-        translateX.value = withTiming(-SWIPE_OUT_DISTANCE, { duration: 220 }, (finished) => {
-          if (finished) runOnJS(handleDismiss)();
-        });
-      } else {
-        translateX.value = withSpring(0, { damping: 18, stiffness: 220, mass: 0.6 });
-      }
-    });
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: showProgress.value,
+    transform: [
+      { translateY: interpolate(showProgress.value, [0, 1], [16, 0]) },
+      { translateX: translateX.value },
+    ],
+  }));
 
-  const animatedStyle = useAnimatedStyle(() => {
-    const dragFade = 1 - Math.min(Math.abs(translateX.value) / SWIPE_OUT_DISTANCE, 1);
-    return {
-      opacity: showProgress.value * dragFade,
-      transform: [
-        { translateY: (1 - showProgress.value) * 16 },
-        { translateX: translateX.value },
-      ],
-    };
-  });
+  // onStartShouldSetPanResponder is false and we only claim the gesture once
+  // real horizontal movement is detected — this way simple taps on the
+  // title or prev/play/next buttons underneath are completely unaffected.
+  const swipePanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_evt, gestureState) =>
+        Math.abs(gestureState.dx) > 15 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.5,
+      onPanResponderMove: (_evt, gestureState) => {
+        translateX.value = gestureState.dx; // follow the finger live, either direction
+      },
+      onPanResponderRelease: (_evt, gestureState) => {
+        if (Math.abs(gestureState.dx) > SWIPE_THRESHOLD) {
+          // Past the threshold — finish sliding off in the same direction,
+          // then stop playback once it's fully off-screen.
+          const direction = gestureState.dx > 0 ? 1 : -1;
+          translateX.value = withTiming(
+            direction * SCREEN_WIDTH,
+            { duration: 200 },
+            (finished) => {
+              if (finished) {
+                runOnJS(stopPlaybackFromSwipe)();
+              }
+            }
+          );
+        } else {
+          // Didn't reach the threshold — spring back to center.
+          translateX.value = withSpring(0, { damping: 18, stiffness: 220 });
+        }
+      },
+    })
+  ).current;
 
   if (!hasPlayedOnce) return null;
 
   return (
-    <GestureDetector gesture={panGesture}>
-      <Animated.View
-        style={[styles.wrapper, animatedStyle]}
-        pointerEvents={visible ? "auto" : "none"}
-      >
-        <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
-        <View style={styles.glassTint} pointerEvents="none" />
+    <Animated.View
+      style={[styles.wrapper, animatedStyle]}
+      pointerEvents={visible ? "auto" : "none"}
+      {...swipePanResponder.panHandlers}
+    >
+      <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
+      <View style={styles.glassTint} pointerEvents="none" />
 
-        <Pressable style={styles.trackInfo} onPress={handleTitlePress}>
-          <ThemedText variant="body" numberOfLines={1} style={styles.title}>
-            {displayLabel}
-          </ThemedText>
+      <Pressable style={styles.trackInfo} onPress={handleTitlePress}>
+        <ThemedText variant="body" numberOfLines={1} style={styles.title}>
+          {displayLabel}
+        </ThemedText>
+      </Pressable>
+
+      <View style={styles.controls}>
+        <Pressable onPress={actions?.previous} style={styles.button}>
+          <ThemedText style={styles.icon}>⏮</ThemedText>
         </Pressable>
-
-        <View style={styles.controls}>
-          <Pressable onPress={actions?.previous} style={styles.button}>
-            <ThemedText style={styles.icon}>⏮</ThemedText>
-          </Pressable>
-          <Pressable onPress={actions?.togglePlayPause} style={styles.button}>
-            <ThemedText style={styles.icon}>{isPlaying ? "⏸" : "▶"}</ThemedText>
-          </Pressable>
-          <Pressable onPress={actions?.next} style={styles.button}>
-            <ThemedText style={styles.icon}>⏭</ThemedText>
-          </Pressable>
-        </View>
-      </Animated.View>
-    </GestureDetector>
+        <Pressable onPress={actions?.togglePlayPause} style={styles.button}>
+          <ThemedText style={styles.icon}>{isPlaying ? "⏸" : "▶"}</ThemedText>
+        </Pressable>
+        <Pressable onPress={actions?.next} style={styles.button}>
+          <ThemedText style={styles.icon}>⏭</ThemedText>
+        </Pressable>
+      </View>
+    </Animated.View>
   );
 }
 
