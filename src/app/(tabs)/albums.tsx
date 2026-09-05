@@ -3,6 +3,7 @@ import { View, ScrollView, Pressable, BackHandler } from "react-native";
 import { EaseView } from "react-native-ease";
 import { ListMusic, Plus, Search, CheckSquare, Trash2, X } from "lucide-react-native";
 import { Screen } from "../../components/ui/screen";
+import { ScreenHeader } from "../../components/ui/screen-header";
 import { ThemedText } from "../../components/ui/themed-text";
 import { LibraryTile } from "../../components/ui/library-tile";
 import { MoodCard } from "../../components/ui/mood-card";
@@ -26,7 +27,6 @@ export default function AlbumsScreen() {
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [searchVisible, setSearchVisible] = useState(false);
 
-  // Selection mode: entered via long-press on a card.
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [confirmDeleteVisible, setConfirmDeleteVisible] = useState(false);
@@ -54,14 +54,12 @@ export default function AlbumsScreen() {
     setSelectedIds([]);
   };
 
-  // Intercept the phone's system back button while in selection mode, so it
-  // exits selection mode instead of doing nothing (or navigating away).
   useEffect(() => {
     if (!selectionMode) return;
 
     const onBackPress = () => {
       exitSelectionMode();
-      return true; // tells Android "handled, don't do the default back action"
+      return true;
     };
 
     const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
@@ -100,10 +98,10 @@ export default function AlbumsScreen() {
 
   return (
     <Screen>
-      <ScrollView contentContainerStyle={{ paddingTop: spacing.md, paddingBottom: 140, gap: spacing.md }}>
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-          <ThemedText variant="title">Albums</ThemedText>
-          {selectionMode ? (
+      <ScreenHeader
+        title="Albums"
+        right={
+          selectionMode ? (
             <AnimatedIconButton onPress={exitSelectionMode}>
               <X color={colors.cream} size={22} />
             </AnimatedIconButton>
@@ -111,13 +109,11 @@ export default function AlbumsScreen() {
             <Pressable onPress={() => setSearchVisible(true)} style={{ padding: 4 }}>
               <Search color={colors.cream} size={22} />
             </Pressable>
-          )}
-        </View>
+          )
+        }
+      />
 
-        {/* This row crossfades between the two normal tiles and the
-            select-all/delete buttons — both are always mounted, only their
-            opacity/pointerEvents change, so the transition animates smoothly
-            instead of the layout abruptly swapping. */}
+      <ScrollView contentContainerStyle={{ paddingTop: spacing.md, paddingBottom: 140, gap: spacing.md }}>
         <View style={{ height: 190 }}>
           <EaseView
             style={{ position: "absolute", left: 0, right: 0, flexDirection: "row", gap: spacing.md }}

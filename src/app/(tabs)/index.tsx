@@ -2,6 +2,7 @@ import { useState } from "react";
 import { FlatList, View, Pressable } from "react-native";
 import { Search } from "lucide-react-native";
 import { Screen } from "../../components/ui/screen";
+import { ScreenHeader } from "../../components/ui/screen-header";
 import { ThemedText } from "../../components/ui/themed-text";
 import { Button } from "../../components/ui/button";
 import { SearchModal } from "../../components/ui/search-modal";
@@ -41,12 +42,14 @@ export default function AllMusicScreen() {
 
   return (
     <Screen>
-      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: spacing.md, marginBottom: spacing.md }}>
-        <ThemedText variant="title">All Music</ThemedText>
-        <AnimatedIconButton onPress={() => setSearchVisible(true)}>
-          <Search color={colors.cream} size={22} />
-        </AnimatedIconButton>
-      </View>
+      <ScreenHeader
+        title="All Music"
+        right={
+          <AnimatedIconButton onPress={() => setSearchVisible(true)}>
+            <Search color={colors.cream} size={22} />
+          </AnimatedIconButton>
+        }
+      />
 
       {loading && <ThemedText variant="muted">Loading your music...</ThemedText>}
 
